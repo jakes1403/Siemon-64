@@ -10,9 +10,29 @@
 #include "plane.h"
 #include "prim_test.h"
 
+#include <math.h>
+
 // Set this to 1 to enable rdpq debug output.
 // The demo will only run for a single frame and stop.
 #define DEBUG_RDP 0
+
+#define PI 3.14159265
+
+#define CHANNEL_SFX1    0
+#define CHANNEL_SFX2    1
+#define CHANNEL_MUSIC   2
+
+typedef struct {
+    float x, y, z;
+    float rotation;
+} Object;
+
+void lookAt(Object* obj, float camX, float camZ) {
+    float dx = camX - obj->x;
+    float dz = camZ - obj->z;
+    
+    obj->rotation = atan2(dz, dx);
+}
 
 const float floor_y = 1.5f;
 
@@ -27,10 +47,7 @@ const float look_sensitivity = 0.1f;
 
 static surface_t zbuffer;
 
-static GLuint textures[4];
-
-static GLenum shade_model = GL_SMOOTH;
-static bool fog_enabled = false;
+static bool fog_enabled = true;
 
 static const GLfloat environment_color[] = { 0.1f, 0.03f, 0.2f, 1.f };
 
@@ -56,14 +73,18 @@ static const GLfloat light_diffuse[8][4] = {
     { 1.0f, 1.0f, 1.0f, 1.0f },
 };
 
-static const char *texture_path[4] = {
+#define SPRITE_COUNT 4
+
+static const char *texture_path[SPRITE_COUNT] = {
     "rom:/circle0.sprite",
     "rom:/diamond0.sprite",
     "rom:/pentagon0.sprite",
-    "rom:/triangle0.sprite",
+    "rom:/siemon.sprite",
 };
 
-static sprite_t *sprites[4];
+static GLuint textures[SPRITE_COUNT];
+
+static sprite_t *sprites[SPRITE_COUNT];
 
 // The gravitational constant in m/s^2
 #define GRAVITY 9.81
@@ -100,11 +121,12 @@ void load_texture(GLenum target, sprite_t *sprite)
 }
 
 
+
 void setup()
 {
     zbuffer = surface_alloc(FMT_RGBA16, display_get_width(), display_get_height());
 
-    for (uint32_t i = 0; i < 4; i++)
+    for (uint32_t i = 0; i < SPRITE_COUNT; i++)
     {
         sprites[i] = sprite_load(texture_path[i]);
     }
@@ -152,7 +174,7 @@ void setup()
     glFogf(GL_FOG_END, 20);
     glFogfv(GL_FOG_COLOR, environment_color);
 
-    glGenTextures(4, textures);
+    glGenTextures(SPRITE_COUNT, textures);
 
     #if 0
     GLenum min_filter = GL_LINEAR_MIPMAP_LINEAR;
@@ -161,7 +183,7 @@ void setup()
     #endif
 
 
-    for (uint32_t i = 0; i < 4; i++)
+    for (uint32_t i = 0; i < SPRITE_COUNT; i++)
     {
         glBindTexture(GL_TEXTURE_2D, textures[i]);
 
@@ -229,46 +251,65 @@ void render()
     glEnable(GL_COLOR_MATERIAL);
     glPushMatrix();
     glColor3f(1, 1, 1);
+
     rdpq_debug_log_msg("Plane");
     draw_plane();
 
-    for (uint32_t i = 0; i < 10; i++)
-    {
-        glTranslatef(i,sin(rotation * 0.23f * (i + 1)),i * sin(rotation * 0.13f));
-        rdpq_debug_log_msg("Cube");
-        draw_cube();
-    }
+    // for (uint32_t i = 0; i < 10; i++)
+    // {
+    //     glTranslatef(i,sin(rotation * 0.23f * (i + 1)),i * sin(rotation * 0.13f));
+    //     rdpq_debug_log_msg("Cube");
+    //     draw_cube();
+    // }
     glPopMatrix();
 
     glPushMatrix();
-    glTranslatef(0, 0, 6);
-    glRotatef(35, 0, 1, 0);
+
+    float simon_x = 0.0f, simon_y = 1.5f, simon_z = 6.0f;
+
+    glTranslatef(simon_x, simon_y, simon_z);
+
+    float dx = camera_x - simon_x;
+    float dz = camera_z - simon_z;
+
+    glRotatef((atan2(dz, dx) * -(180.0 / PI)) + 90.0f, 0, 1, 0);
+
+    glRotatef(90.0f, 1, 0, 0);
+
     glScalef(3, 3, 3);
-    glColor4f(1.0f, 0.4f, 0.2f, 0.5f);
-    glDepthFunc(GL_EQUAL);
-    glDepthMask(GL_FALSE);
+    //glColor4f(1.0f, 0.4f, 0.2f, 1.0f);
+    //glDepthFunc(GL_EQUAL);
+    //glDepthMask(GL_FALSE);
+    glEnable(GL_BLEND);
+    glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+    glDisable(GL_LIGHTING);
     rdpq_debug_log_msg("Decal");
+
+    glBindTexture(GL_TEXTURE_2D, textures[3]);
+
     draw_quad();
-    glDepthMask(GL_TRUE);
-    glDepthFunc(GL_LESS);
+    //glDepthMask(GL_TRUE);
+    //glDepthFunc(GL_LESS);
+    glDisable(GL_BLEND);
+    glEnable(GL_LIGHTING);
     glPopMatrix();
 
     glDisable(GL_COLOR_MATERIAL);
 
-    glPushMatrix();
+    // glPushMatrix();
 
-    glRotatef(rotation*0.23f, 1, 0, 0);
-    glRotatef(rotation*0.98f, 0, 0, 1);
-    glRotatef(rotation*1.71f, 0, 1, 0);
+    // glRotatef(rotation*0.23f, 1, 0, 0);
+    // glRotatef(rotation*0.98f, 0, 0, 1);
+    // glRotatef(rotation*1.71f, 0, 1, 0);
 
-    glBindTexture(GL_TEXTURE_2D, textures[(texture_index + 1)%4]);
+    // glBindTexture(GL_TEXTURE_2D, textures[(texture_index + 1)%4]);
 
-    glCullFace(GL_FRONT);
-    rdpq_debug_log_msg("Sphere");
-    draw_sphere();
-    glCullFace(GL_BACK);
+    // glCullFace(GL_FRONT);
+    // rdpq_debug_log_msg("Sphere");
+    // draw_sphere();
+    // glCullFace(GL_BACK);
 
-    glPopMatrix();
+    // glPopMatrix();
 
     glPushMatrix();
 
@@ -289,23 +330,39 @@ void render()
     glDisable(GL_BLEND);
 
     glPopMatrix();
+
+    
     gl_context_end();
 
+    //graphics_set_font_sprite( custom_font );
+
+
     rdpq_detach_show();
+
+    
 }
 
 float clamp(float val, float min, float max) {
     return val < min ? min : val > max ? max : val;
 }
 
-int main()
+int main(void)
 {
 	debug_init_isviewer();
 	debug_init_usblog();
-    
-    dfs_init(DFS_DEFAULT_LOCATION);
+
+    int ret = dfs_init(DFS_DEFAULT_LOCATION);
+	assert(ret == DFS_ESUCCESS);
+
+	audio_init(44100, 4);
+	mixer_init(16);
 
     display_init(RESOLUTION_320x240, DEPTH_16_BPP, 3, GAMMA_NONE, ANTIALIAS_RESAMPLE_FETCH_ALWAYS);
+
+    wav64_t sfx_monosample;
+
+    wav64_open(&sfx_monosample, "rom:/dungeon_music.wav64");
+	wav64_set_loop(&sfx_monosample, true);
 
     rdpq_init();
     gl_init();
@@ -322,6 +379,8 @@ int main()
     static int jumpFrameCount = 0;
 
     static bool doingJump = false;
+
+    //wav64_play(&sfx_monosample, CHANNEL_MUSIC);
 
 #if !DEBUG_RDP
     while (1)
@@ -367,10 +426,10 @@ int main()
             debugf("%ld\n", animation);
         }
 
-        if (down.c[0].R) {
-            shade_model = shade_model == GL_SMOOTH ? GL_FLAT : GL_SMOOTH;
-            glShadeModel(shade_model);
-        }
+        // if (down.c[0].R) {
+        //     shade_model = shade_model == GL_SMOOTH ? GL_FLAT : GL_SMOOTH;
+        //     glShadeModel(shade_model);
+        // }
 
         if (down.c[0].L) {
             fog_enabled = !fog_enabled;
@@ -446,6 +505,14 @@ int main()
         }
 
         render();
+
+        if (audio_can_write()) {    	
+			short *buf = audio_write_begin();
+			mixer_poll(buf, audio_get_buffer_length());
+			audio_write_end();
+		}
+        
+
         if (DEBUG_RDP)
             rspq_wait();
     }

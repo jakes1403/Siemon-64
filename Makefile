@@ -6,6 +6,9 @@ assets_png = $(wildcard assets/*.png)
 
 assets_conv = $(addprefix filesystem/,$(notdir $(assets_png:%.png=%.sprite)))
 
+assets_wav = $(wildcard assets/*.wav)
+assets_wav_conv = $(addprefix filesystem/,$(notdir $(assets_wav:%.wav=%.wav64)))
+
 MKSPRITE_FLAGS ?=
 
 all: gldemo.z64
@@ -15,7 +18,12 @@ filesystem/%.sprite: assets/%.png
 	@echo "    [SPRITE] $@"
 	@$(N64_MKSPRITE) -f RGBA16 --compress -o "$(dir $@)" "$<"
 
-$(BUILD_DIR)/gldemo.dfs: $(assets_conv)
+filesystem/%.wav64: assets/%.wav
+	@mkdir -p $(dir $@)
+	@echo "    [AUDIO] $@"
+	@$(N64_AUDIOCONV) -o filesystem $<
+
+$(BUILD_DIR)/gldemo.dfs: $(assets_conv) $(assets_wav_conv)
 $(BUILD_DIR)/gldemo.elf: $(src:%.c=$(BUILD_DIR)/%.o)
 
 gldemo.z64: N64_ROM_TITLE="GL Demo"
