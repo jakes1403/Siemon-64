@@ -265,18 +265,31 @@ void render()
 
     glPushMatrix();
 
-    float simon_x = 0.0f, simon_y = 1.5f, simon_z = 6.0f;
+    static float simon_x = 0.0f, simon_y = 1.5f, simon_z = 6.0f;
+
+    simon_x += (camera_x - simon_x) * 0.005f;
+    simon_y += (camera_y - simon_y) * 0.005f;
+    simon_z += (camera_z - simon_z) * 0.005f;
+
+    simon_x += sin(rotation*0.01f) * 0.05f;
+    simon_y += fabs(sin(rotation*0.01f) * 0.05f);
+    simon_z += cos(rotation*0.01f) * 0.05f;
+	//$Simon.global_position.x += cos($Timer.time_left * 2.0) * 8.0 * _noise2.get_noise_1d($Timer.time_left)
+	//$Simon.global_position.y += sin($Timer.time_left * 2.0) * 4.0 * _noise3.get_noise_1d($Timer.time_left)
 
     glTranslatef(simon_x, simon_y, simon_z);
 
     float dx = camera_x - simon_x;
     float dz = camera_z - simon_z;
 
-    glRotatef((atan2(dz, dx) * -(180.0 / PI)) + 90.0f, 0, 1, 0);
+    static float current_rotation = 0.0f;
+    current_rotation += (((atan2(dz, dx) * -(180.0 / PI)) + 90.0f) - current_rotation) * 0.05f;
+
+    glRotatef(current_rotation, 0, 1, 0);
 
     glRotatef(90.0f, 1, 0, 0);
 
-    glScalef(3, 3, 3);
+    glScalef(10, 10, 10);
     //glColor4f(1.0f, 0.4f, 0.2f, 1.0f);
     //glDepthFunc(GL_EQUAL);
     //glDepthMask(GL_FALSE);
