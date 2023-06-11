@@ -6,42 +6,44 @@
 
 static const float cube_size = 6.0f;
 
+#define TEXTURE_REPEATS 4.0f
+
 static const vertex_t cube_vertices[] = {
     // +X
-    { .position = { cube_size, -cube_size, -cube_size}, .texcoord = {0.f, 0.f}, .normal = { 1.f,  0.f,  0.f}, .color = 0xFF0000FF },
-    { .position = { cube_size,  cube_size, -cube_size}, .texcoord = {1.f, 0.f}, .normal = { 1.f,  0.f,  0.f}, .color = 0xFF0000FF },
-    { .position = { cube_size,  cube_size,  cube_size}, .texcoord = {1.f, 1.f}, .normal = { 1.f,  0.f,  0.f}, .color = 0xFF0000FF },
-    { .position = { cube_size, -cube_size,  cube_size}, .texcoord = {0.f, 1.f}, .normal = { 1.f,  0.f,  0.f}, .color = 0xFF0000FF },
+    { .position = { cube_size, -cube_size, -cube_size}, .texcoord = {0.f, 0.f}, .normal = { 1.f,  0.f,  0.f}, .color = 0x000000FF },
+    { .position = { cube_size,  cube_size, -cube_size}, .texcoord = {TEXTURE_REPEATS, 0.f}, .normal = { 1.f,  0.f,  0.f}, .color = 0x000000FF },
+    { .position = { cube_size,  cube_size,  cube_size}, .texcoord = {TEXTURE_REPEATS, TEXTURE_REPEATS}, .normal = { 1.f,  0.f,  0.f}, .color = 0x000000FF },
+    { .position = { cube_size, -cube_size,  cube_size}, .texcoord = {0.f, TEXTURE_REPEATS}, .normal = { 1.f,  0.f,  0.f}, .color = 0x000000FF },
 
     // -X
-    { .position = {-cube_size, -cube_size, -cube_size}, .texcoord = {0.f, 0.f}, .normal = {-1.f,  0.f,  0.f}, .color = 0x00FFFFFF },
-    { .position = {-cube_size, -cube_size,  cube_size}, .texcoord = {0.f, 1.f}, .normal = {-1.f,  0.f,  0.f}, .color = 0x00FFFFFF },
-    { .position = {-cube_size,  cube_size,  cube_size}, .texcoord = {1.f, 1.f}, .normal = {-1.f,  0.f,  0.f}, .color = 0x00FFFFFF },
-    { .position = {-cube_size,  cube_size, -cube_size}, .texcoord = {1.f, 0.f}, .normal = {-1.f,  0.f,  0.f}, .color = 0x00FFFFFF },
+    { .position = {-cube_size, -cube_size, -cube_size}, .texcoord = {0.f, 0.f}, .normal = {-1.f,  0.f,  0.f}, .color = 0x000000FF },
+    { .position = {-cube_size, -cube_size,  cube_size}, .texcoord = {0.f, TEXTURE_REPEATS}, .normal = {-1.f,  0.f,  0.f}, .color = 0x000000FF },
+    { .position = {-cube_size,  cube_size,  cube_size}, .texcoord = {TEXTURE_REPEATS, TEXTURE_REPEATS}, .normal = {-1.f,  0.f,  0.f}, .color = 0x000000FF },
+    { .position = {-cube_size,  cube_size, -cube_size}, .texcoord = {TEXTURE_REPEATS, 0.f}, .normal = {-1.f,  0.f,  0.f}, .color = 0x000000FF },
 
     // +Y
-    { .position = {-cube_size,  cube_size, -cube_size}, .texcoord = {0.f, 0.f}, .normal = { 0.f,  1.f,  0.f}, .color = 0x00FF00FF },
-    { .position = {-cube_size,  cube_size,  cube_size}, .texcoord = {0.f, 1.f}, .normal = { 0.f,  1.f,  0.f}, .color = 0x00FF00FF },
-    { .position = { cube_size,  cube_size,  cube_size}, .texcoord = {1.f, 1.f}, .normal = { 0.f,  1.f,  0.f}, .color = 0x00FF00FF },
-    { .position = { cube_size,  cube_size, -cube_size}, .texcoord = {1.f, 0.f}, .normal = { 0.f,  1.f,  0.f}, .color = 0x00FF00FF },
+    { .position = {-cube_size,  cube_size, -cube_size}, .texcoord = {0.f, 0.f}, .normal = { 0.f,  1.f,  0.f}, .color = 0x000000FF },
+    { .position = {-cube_size,  cube_size,  cube_size}, .texcoord = {0.f, TEXTURE_REPEATS}, .normal = { 0.f,  1.f,  0.f}, .color = 0x000000FF },
+    { .position = { cube_size,  cube_size,  cube_size}, .texcoord = {TEXTURE_REPEATS, TEXTURE_REPEATS}, .normal = { 0.f,  1.f,  0.f}, .color = 0x000000FF },
+    { .position = { cube_size,  cube_size, -cube_size}, .texcoord = {TEXTURE_REPEATS, 0.f}, .normal = { 0.f,  1.f,  0.f}, .color = 0x000000FF },
 
     // -Y
-    { .position = {-cube_size, -cube_size, -cube_size}, .texcoord = {0.f, 0.f}, .normal = { 0.f, -1.f,  0.f}, .color = 0xFF00FFFF },
-    { .position = { cube_size, -cube_size, -cube_size}, .texcoord = {1.f, 0.f}, .normal = { 0.f, -1.f,  0.f}, .color = 0xFF00FFFF },
-    { .position = { cube_size, -cube_size,  cube_size}, .texcoord = {1.f, 1.f}, .normal = { 0.f, -1.f,  0.f}, .color = 0xFF00FFFF },
-    { .position = {-cube_size, -cube_size,  cube_size}, .texcoord = {0.f, 1.f}, .normal = { 0.f, -1.f,  0.f}, .color = 0xFF00FFFF },
+    { .position = {-cube_size, -cube_size, -cube_size}, .texcoord = {0.f, 0.f}, .normal = { 0.f, -1.f,  0.f}, .color = 0x000000FF },
+    { .position = { cube_size, -cube_size, -cube_size}, .texcoord = {TEXTURE_REPEATS, 0.f}, .normal = { 0.f, -1.f,  0.f}, .color = 0x000000FF },
+    { .position = { cube_size, -cube_size,  cube_size}, .texcoord = {TEXTURE_REPEATS, TEXTURE_REPEATS}, .normal = { 0.f, -1.f,  0.f}, .color = 0x000000FF },
+    { .position = {-cube_size, -cube_size,  cube_size}, .texcoord = {0.f, TEXTURE_REPEATS}, .normal = { 0.f, -1.f,  0.f}, .color = 0x000000FF },
 
     // +Z
-    { .position = {-cube_size, -cube_size,  cube_size}, .texcoord = {0.f, 0.f}, .normal = { 0.f,  0.f,  1.f}, .color = 0x0000FFFF },
-    { .position = { cube_size, -cube_size,  cube_size}, .texcoord = {1.f, 0.f}, .normal = { 0.f,  0.f,  1.f}, .color = 0x0000FFFF },
-    { .position = { cube_size,  cube_size,  cube_size}, .texcoord = {1.f, 1.f}, .normal = { 0.f,  0.f,  1.f}, .color = 0x0000FFFF },
-    { .position = {-cube_size,  cube_size,  cube_size}, .texcoord = {0.f, 1.f}, .normal = { 0.f,  0.f,  1.f}, .color = 0x0000FFFF },
+    { .position = {-cube_size, -cube_size,  cube_size}, .texcoord = {0.f, 0.f}, .normal = { 0.f,  0.f,  1.f}, .color = 0x000000FF },
+    { .position = { cube_size, -cube_size,  cube_size}, .texcoord = {TEXTURE_REPEATS, 0.f}, .normal = { 0.f,  0.f,  1.f}, .color = 0x000000FF },
+    { .position = { cube_size,  cube_size,  cube_size}, .texcoord = {TEXTURE_REPEATS, TEXTURE_REPEATS}, .normal = { 0.f,  0.f,  1.f}, .color = 0x000000FF },
+    { .position = {-cube_size,  cube_size,  cube_size}, .texcoord = {0.f, TEXTURE_REPEATS}, .normal = { 0.f,  0.f,  1.f}, .color = 0x000000FF },
 
     // -Z
-    { .position = {-cube_size, -cube_size, -cube_size}, .texcoord = {0.f, 0.f}, .normal = { 0.f,  0.f, -1.f}, .color = 0xFFFF00FF },
-    { .position = {-cube_size,  cube_size, -cube_size}, .texcoord = {0.f, 1.f}, .normal = { 0.f,  0.f, -1.f}, .color = 0xFFFF00FF },
-    { .position = { cube_size,  cube_size, -cube_size}, .texcoord = {1.f, 1.f}, .normal = { 0.f,  0.f, -1.f}, .color = 0xFFFF00FF },
-    { .position = { cube_size, -cube_size, -cube_size}, .texcoord = {1.f, 0.f}, .normal = { 0.f,  0.f, -1.f}, .color = 0xFFFF00FF },
+    { .position = {-cube_size, -cube_size, -cube_size}, .texcoord = {0.f, 0.f}, .normal = { 0.f,  0.f, -1.f}, .color = 0x000000FF },
+    { .position = {-cube_size,  cube_size, -cube_size}, .texcoord = {0.f, TEXTURE_REPEATS}, .normal = { 0.f,  0.f, -1.f}, .color = 0x000000FF },
+    { .position = { cube_size,  cube_size, -cube_size}, .texcoord = {TEXTURE_REPEATS, TEXTURE_REPEATS}, .normal = { 0.f,  0.f, -1.f}, .color = 0x000000FF },
+    { .position = { cube_size, -cube_size, -cube_size}, .texcoord = {TEXTURE_REPEATS, 0.f}, .normal = { 0.f,  0.f, -1.f}, .color = 0x000000FF },
 };
 
 static const uint16_t cube_indices[] = {
@@ -65,14 +67,15 @@ void draw_cube()
     glEnableClientState(GL_VERTEX_ARRAY);
     glEnableClientState(GL_TEXTURE_COORD_ARRAY);
     glEnableClientState(GL_NORMAL_ARRAY);
-    glEnableClientState(GL_COLOR_ARRAY);
+    //glEnableClientState(GL_COLOR_ARRAY);
 
     glVertexPointer(3, GL_FLOAT, sizeof(vertex_t), (void*)(0*sizeof(float) + (void*)cube_vertices));
     glTexCoordPointer(2, GL_FLOAT, sizeof(vertex_t), (void*)(3*sizeof(float) + (void*)cube_vertices));
     glNormalPointer(GL_FLOAT, sizeof(vertex_t), (void*)(5*sizeof(float) + (void*)cube_vertices));
-    glColorPointer(4, GL_UNSIGNED_BYTE, sizeof(vertex_t), (void*)(8*sizeof(float) + (void*)cube_vertices));
+    //glColorPointer(4, GL_UNSIGNED_BYTE, sizeof(vertex_t), (void*)(8*sizeof(float) + (void*)cube_vertices));
 
     glDrawElements(GL_TRIANGLES, sizeof(cube_indices) / sizeof(uint16_t), GL_UNSIGNED_SHORT, cube_indices);
+    //glDisableClientState(GL_COLOR_ARRAY);
 }
 
 #endif

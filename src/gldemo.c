@@ -38,13 +38,11 @@ void lookAt(Object* obj, float camX, float camZ) {
     obj->rotation = atan2(dz, dx);
 }
 
-const float floor_y = 1.5f;
-
-static float camera_x = 0.0f, camera_y = floor_y, camera_z = -6.0f;
+const float floor_y = 2.5f;
+static float camera_x = cube_size * 2, camera_y = floor_y, camera_z = cube_size * 2;
 static float camera_pitch = 0.0f, camera_yaw = 0.0f;
 
 static uint32_t animation = 3283;
-static uint32_t texture_index = 0;
 
 const float look_sensitivity = 0.1f;
 
@@ -77,13 +75,33 @@ static const GLfloat light_diffuse[8][4] = {
     { 1.0f, 1.0f, 1.0f, 1.0f },
 };
 
-#define SPRITE_COUNT 4
+#define SPRITE_COUNT 24
 
 static const char *texture_path[SPRITE_COUNT] = {
-    "rom:/circle0.sprite",
-    "rom:/diamond0.sprite",
+    "rom:/wallTex.sprite",
+    "rom:/floor.sprite",
     "rom:/pentagon0.sprite",
     "rom:/siemon.sprite",
+    "rom:/AI_1.sprite",
+    "rom:/AI_2.sprite",
+    "rom:/E_1.sprite",
+    "rom:/E_2.sprite",
+    "rom:/etc_1.sprite",
+    "rom:/etc_2.sprite",
+    "rom:/FV_1.sprite",
+    "rom:/FV_2.sprite",
+    "rom:/L_1.sprite",
+    "rom:/L_2.sprite",
+    "rom:/MBP_1.sprite",
+    "rom:/MBP_2.sprite",
+    "rom:/O_1.sprite",
+    "rom:/O_2.sprite",
+    "rom:/rest_1.sprite",
+    "rom:/rest_2.sprite",
+    "rom:/U_1.sprite",
+    "rom:/U_2.sprite",
+    "rom:/WQ_1.sprite",
+    "rom:/WQ_2.sprite"
 };
 
 static GLuint textures[SPRITE_COUNT];
@@ -189,29 +207,91 @@ void setup()
 
     for (uint32_t i = 0; i < SPRITE_COUNT; i++)
     {
-        glBindTexture(GL_TEXTURE_2D, textures[i]);
+        if (i < 4)
+        {
+            glBindTexture(GL_TEXTURE_2D, textures[i]);
 
-        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
-        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
-        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
-        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, min_filter);
+            glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
+            glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
+            glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+            glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, min_filter);
 
-        load_texture(GL_TEXTURE_2D, sprites[i]);
+            load_texture(GL_TEXTURE_2D, sprites[i]);
+        }
+        else
+        {
+            glBindTexture(GL_TEXTURE_2D, textures[i]);
+
+            glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
+            glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
+            glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+            glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+
+            load_texture(GL_TEXTURE_2D, sprites[i]);
+        }
     }
 }
 
+
 void draw_quad()
 {
+    int animation_frame = 4 + ((animation / 10) % 10) * 2;
+    // Original plane
+    // Top left with textures[4]
+    glBindTexture(GL_TEXTURE_2D, textures[animation_frame]);
     glBegin(GL_TRIANGLE_STRIP);
         glNormal3f(0, 1, 0);
         glTexCoord2f(0, 0);
-        glVertex3f(-0.5f, 0, -0.5f);
+        glVertex3f(-1, 1, 0);
         glTexCoord2f(0, 1);
-        glVertex3f(-0.5f, 0, 0.5f);
+        glVertex3f(-1, 0, 0);
         glTexCoord2f(1, 0);
-        glVertex3f(0.5f, 0, -0.5f);
+        glVertex3f(0, 1, 0);
         glTexCoord2f(1, 1);
-        glVertex3f(0.5f, 0, 0.5f);
+        glVertex3f(0, 0, 0);
+    glEnd();
+
+    // Bottom left with textures[5]
+    glBindTexture(GL_TEXTURE_2D, textures[animation_frame + 1]);
+    glBegin(GL_TRIANGLE_STRIP);
+        glNormal3f(0, 1, 0);
+        glTexCoord2f(0, 0);
+        glVertex3f(-1, 0, 0);
+        glTexCoord2f(0, 1);
+        glVertex3f(-1, -1, 0);
+        glTexCoord2f(1, 0);
+        glVertex3f(0, 0, 0);
+        glTexCoord2f(1, 1);
+        glVertex3f(0, -1, 0);
+    glEnd();
+
+    // Mirrored plane
+    // Top right with textures[4]
+    glBindTexture(GL_TEXTURE_2D, textures[animation_frame]);
+    glBegin(GL_TRIANGLE_STRIP);
+        glNormal3f(0, 1, 0);
+        glTexCoord2f(1, 0); // Reverse texture mapping
+        glVertex3f(0, 1, 0);
+        glTexCoord2f(1, 1); // Reverse texture mapping
+        glVertex3f(0, 0, 0);
+        glTexCoord2f(0, 0); // Reverse texture mapping
+        glVertex3f(1, 1, 0);
+        glTexCoord2f(0, 1); // Reverse texture mapping
+        glVertex3f(1, 0, 0);
+    glEnd();
+
+    // Bottom right with textures[5]
+    glBindTexture(GL_TEXTURE_2D, textures[animation_frame + 1]);
+    glBegin(GL_TRIANGLE_STRIP);
+        glNormal3f(0, 1, 0);
+        glTexCoord2f(1, 0); // Reverse texture mapping
+        glVertex3f(0, 0, 0);
+        glTexCoord2f(1, 1); // Reverse texture mapping
+        glVertex3f(0, -1, 0);
+        glTexCoord2f(0, 0); // Reverse texture mapping
+        glVertex3f(1, 0, 0);
+        glTexCoord2f(0, 1); // Reverse texture mapping
+        glVertex3f(1, -1, 0);
     glEnd();
 }
 
@@ -253,6 +333,7 @@ static bool unprocessedCollision = false;
 
 void drawCube (float x, float y)
 {
+    glBindTexture(GL_TEXTURE_2D, textures[0]);
     if (check_collision(1.0f, camera_x, camera_y, camera_z, cube_size * 2, x, cube_size, y))
     {
         collision_x = x;
@@ -269,7 +350,20 @@ void drawCube (float x, float y)
     
 }
 
-#define WHITE
+
+void drawFloor (float x, float y)
+{
+    glBindTexture(GL_TEXTURE_2D, textures[1]);
+    if (calculate_distance(x, y, camera_x, camera_z) < MAX_LENGTH)
+    {
+        glTranslatef(x, 0,y);
+        draw_plane();
+        glTranslatef(-x, 0,-y);
+    }
+    
+}
+
+#define WHITE drawFloor(x * cube_size * 2, y * cube_size * 2)
 #define BLACK drawCube(x * cube_size * 2, y * cube_size * 2)
 #define RED
 
@@ -342,7 +436,7 @@ void render()
 
     glPopMatrix();
 
-    glBindTexture(GL_TEXTURE_2D, textures[texture_index]);
+    //glBindTexture(GL_TEXTURE_2D, textures[texture_index]);
 
     //glEnable(GL_LIGHTING);
     glEnable(GL_TEXTURE_2D);
@@ -351,7 +445,7 @@ void render()
     glPushMatrix();
 
     rdpq_debug_log_msg("Plane");
-    draw_plane();
+    //draw_plane();
 
     // for (uint32_t i = 0; i < 10; i++)
     // {
@@ -390,7 +484,7 @@ void render()
 
     glRotatef(current_rotation, 0, 1, 0);
 
-    glRotatef(90.0f, 1, 0, 0);
+    //glRotatef(90.0f, 1, 0, 0);
 
     glScalef(10, 10, 10);
     //glColor4f(1.0f, 0.4f, 0.2f, 1.0f);
@@ -400,8 +494,6 @@ void render()
     glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
     //glDisable(GL_LIGHTING);
     rdpq_debug_log_msg("Decal");
-
-    glBindTexture(GL_TEXTURE_2D, textures[3]);
 
     draw_quad();
     //glDepthMask(GL_TRUE);
@@ -504,6 +596,8 @@ int main(void)
 
     wav64_play(&sfx_monosample, CHANNEL_MUSIC);
 
+    debugf("Demo by jakes1403. Modified from the libdragon demo.\n");
+
 #if !DEBUG_RDP
     while (1)
 #endif
@@ -519,7 +613,7 @@ int main(void)
             doingJump = true;
         }
 
-        
+
 
         //if (pressed.c[0].A) {
             
@@ -637,6 +731,12 @@ int main(void)
             camera_z -= cos(camera_yaw) * movement_speed;
         }
 
+        if (unprocessedCollision)
+        {
+            debugf("Collision! At x: %f y: %f\n", collision_x, collision_y);
+            unprocessedCollision = false;
+        }
+
         render();
 
         if (audio_can_write()) {    	
@@ -645,11 +745,7 @@ int main(void)
 			audio_write_end();
 		}
 
-        if (unprocessedCollision)
-        {
-            debugf("Collision! At x: %f y: %f\n", collision_x, collision_y);
-            unprocessedCollision = false;
-        }
+
         
 
         if (DEBUG_RDP)
