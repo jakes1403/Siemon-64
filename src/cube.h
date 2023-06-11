@@ -4,7 +4,7 @@
 #include <GL/gl.h>
 #include "vertex.h"
 
-static const float cube_size = 3.0f;
+static const float cube_size = 6.0f;
 
 static const vertex_t cube_vertices[] = {
     // +X

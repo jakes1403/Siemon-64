@@ -55,16 +55,16 @@ static bool fog_enabled = true;
 
 static const GLfloat environment_color[] = { 0.1f, 0.03f, 0.2f, 1.f };
 
-static const GLfloat light_pos[8][4] = {
-    { 1, 0, 0, 0 },
-    { -1, 0, 0, 0 },
-    { 0, 0, 1, 0 },
-    { 0, 0, -1, 0 },
-    { 8, 3, 0, 1 },
-    { -8, 3, 0, 1 },
-    { 0, 3, 8, 1 },
-    { 0, 3, -8, 1 },
-};
+// static const GLfloat light_pos[8][4] = {
+//     { 1, 0, 0, 0 },
+//     { -1, 0, 0, 0 },
+//     { 0, 0, 1, 0 },
+//     { 0, 0, -1, 0 },
+//     { 8, 3, 0, 1 },
+//     { -8, 3, 0, 1 },
+//     { 0, 3, 8, 1 },
+//     { 0, 3, -8, 1 },
+// };
 
 static const GLfloat light_diffuse[8][4] = {
     { 1.0f, 0.0f, 0.0f, 1.0f },
@@ -215,35 +215,98 @@ void draw_quad()
     glEnd();
 }
 
-#define WHITE debugf(" W ")
-#define BLACK debugf(" B ")
-#define RED   debugf(" R ")
+float calculate_distance(float p1_x, float p1_y, float p2_x, float p2_y) {
+    double x_diff = p1_x - p2_x;
+    double y_diff = p1_y - p2_y;
+
+    return sqrt(x_diff * x_diff + y_diff * y_diff);
+}
+
+
+int check_collision(float r, float x, float y, float z, float s, float cx, float cy, float cz) {
+    float half_s = s / 2;
+    // Calculate the distance from the sphere center to the closest point in the cube
+    float dist_sq = 0;
+    
+    // Adjust the sphere's coordinates relative to the cube's center
+    x -= cx;
+    y -= cy;
+    z -= cz;
+
+    if (x < -half_s) dist_sq += pow(x + half_s, 2);
+    else if (x > half_s) dist_sq += pow(x - half_s, 2);
+
+    if (y < -half_s) dist_sq += pow(y + half_s, 2);
+    else if (y > half_s) dist_sq += pow(y - half_s, 2);
+
+    if (z < -half_s) dist_sq += pow(z + half_s, 2);
+    else if (z > half_s) dist_sq += pow(z - half_s, 2);
+
+    return dist_sq <= r * r;
+}
+
+#define MAX_LENGTH (cube_size * 5)
+
+static float collision_x = 0.0f, collision_y = 0.0f;
+
+static bool unprocessedCollision = false;
+
+void drawCube (float x, float y)
+{
+    if (check_collision(1.0f, camera_x, camera_y, camera_z, cube_size * 2, x, cube_size, y))
+    {
+        collision_x = x;
+        collision_y = y;
+        unprocessedCollision = true;
+    }
+    if (calculate_distance(x, y, camera_x, camera_z) < MAX_LENGTH)
+    {
+        glTranslatef(x, cube_size,y);
+        rdpq_debug_log_msg("Cube");
+        draw_cube();
+        glTranslatef(-x, -cube_size,-y);
+    }
+    
+}
+
+#define WHITE
+#define BLACK drawCube(x * cube_size * 2, y * cube_size * 2)
+#define RED
+
+#define max(a,b) (((a) > (b)) ? (a) : (b))
+#define min(a,b) (((a) < (b)) ? (a) : (b))
 
 void renderMaze(int xspecial, int yspecial){
-	//save a bitmap file! the xspecial, yspecial pixel is coloured red.
 	int x, y;
-	int width=(xsize-1)*2-1;
-	int height=(ysize-1)*2-1;
+    int width=(xsize-1)*2-1;
+    int height=(ysize-1)*2-1;
 
+    int adjustedCameraX = (int)(camera_x / cube_size / 2);
+    int adjustedCameraY = (int)(camera_y / cube_size / 2);
 
-	//Actual writing of data begins here:
-	for(y = 0; y <= height - 1; y++){
-		for(x = 0; x <= width - 1; x++){
-			if(x%2 == 1 && y%2 == 1){
-				if(x/2+1 == xspecial && y/2+1 == yspecial) RED;
-				else{
-					if(MAZE[x/2+1][y/2+1].in) WHITE; else BLACK;
-				}
-			}else if(x%2 == 0 && y%2 == 0){
-				BLACK;
-			}else if(x%2 == 0 && y%2 == 1){
-				if(MAZE[x/2+1][y/2+1].left) BLACK; else WHITE;
-			}else if(x%2 == 1 && y%2 == 0){
-				if(MAZE[x/2+1][y/2+1].up) BLACK; else WHITE;
-			}
-		}
-        debugf("\n");
-	}
+    int lowerBoundX = max(0, adjustedCameraX - (int)MAX_LENGTH);
+    int upperBoundX = min(width - 1, adjustedCameraX + (int)MAX_LENGTH);
+
+    int lowerBoundY = max(0, adjustedCameraY - (int)MAX_LENGTH);
+    int upperBoundY = min(height - 1, adjustedCameraY + (int)MAX_LENGTH);
+
+    //Actual writing of data begins here:
+    for(y = lowerBoundY; y <= upperBoundY; y++){
+        for(x = lowerBoundX; x <= upperBoundX; x++){
+            if(x%2 == 1 && y%2 == 1){
+                if(x/2+1 == xspecial && y/2+1 == yspecial) RED;
+                else{
+                    if(MAZE[x/2+1][y/2+1].in) WHITE; else BLACK;
+                }
+            }else if(x%2 == 0 && y%2 == 0){
+                BLACK;
+            }else if(x%2 == 0 && y%2 == 1){
+                if(MAZE[x/2+1][y/2+1].left) BLACK; else WHITE;
+            }else if(x%2 == 1 && y%2 == 0){
+                if(MAZE[x/2+1][y/2+1].up) BLACK; else WHITE;
+            }
+        }
+    }
 	return;
 }
 
@@ -272,21 +335,20 @@ void render()
 
     glRotatef(rotation*5.43f, 0, 1, 0);
 
-    for (uint32_t i = 0; i < 8; i++)
-    {
-        glLightfv(GL_LIGHT0 + i, GL_POSITION, light_pos[i]);
-    }
+    // for (uint32_t i = 0; i < 8; i++)
+    // {
+    //     glLightfv(GL_LIGHT0 + i, GL_POSITION, light_pos[i]);
+    // }
 
     glPopMatrix();
 
     glBindTexture(GL_TEXTURE_2D, textures[texture_index]);
 
-    glEnable(GL_LIGHTING);
+    //glEnable(GL_LIGHTING);
     glEnable(GL_TEXTURE_2D);
 
-    glEnable(GL_COLOR_MATERIAL);
+    //glEnable(GL_COLOR_MATERIAL);
     glPushMatrix();
-    glColor3f(1, 1, 1);
 
     rdpq_debug_log_msg("Plane");
     draw_plane();
@@ -297,6 +359,9 @@ void render()
     //     rdpq_debug_log_msg("Cube");
     //     draw_cube();
     // }
+
+    renderMaze(0, 0);
+
     glPopMatrix();
 
     glPushMatrix();
@@ -333,7 +398,7 @@ void render()
     //glDepthMask(GL_FALSE);
     glEnable(GL_BLEND);
     glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
-    glDisable(GL_LIGHTING);
+    //glDisable(GL_LIGHTING);
     rdpq_debug_log_msg("Decal");
 
     glBindTexture(GL_TEXTURE_2D, textures[3]);
@@ -342,10 +407,10 @@ void render()
     //glDepthMask(GL_TRUE);
     //glDepthFunc(GL_LESS);
     glDisable(GL_BLEND);
-    glEnable(GL_LIGHTING);
+    //glEnable(GL_LIGHTING);
     glPopMatrix();
 
-    glDisable(GL_COLOR_MATERIAL);
+    //glDisable(GL_COLOR_MATERIAL);
 
     // glPushMatrix();
 
@@ -369,7 +434,7 @@ void render()
 
     glDisable(GL_TEXTURE_2D);
     glDisable(GL_CULL_FACE);
-    glDisable(GL_LIGHTING);
+    //glDisable(GL_LIGHTING);
     glEnable(GL_BLEND);
     glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 
@@ -434,9 +499,10 @@ int main(void)
     //srand((unsigned int)time(NULL)); //seed random number generator with system time
 	initialize();      //initialize the maze
 	generate();        //generate the maze
-	savebmp(0,0);
 
-    //wav64_play(&sfx_monosample, CHANNEL_MUSIC);
+    glEnable(GL_FOG);
+
+    wav64_play(&sfx_monosample, CHANNEL_MUSIC);
 
 #if !DEBUG_RDP
     while (1)
@@ -539,25 +605,36 @@ int main(void)
             camera_pitch = clamp(camera_pitch, -1.5f, 1.5f);
         }
 
+        static float movement_speed = 0.1f;
+
+        if (down.c[0].up)
+        {
+            movement_speed += 0.1f;
+        }
+        if (down.c[0].down)
+        {
+            movement_speed -= 0.1f;
+        }
+
         if (pressed.c[0].C_up)
         {
-            camera_x += sin(camera_yaw) * 0.1f;
-            camera_z += cos(camera_yaw) * 0.1f;
+            camera_x += sin(camera_yaw) * movement_speed;
+            camera_z += cos(camera_yaw) * movement_speed;
         }
         if (pressed.c[0].C_left)
         {
-            camera_x += cos(camera_yaw) * 0.1f;
-            camera_z -= sin(camera_yaw) * 0.1f;
+            camera_x += cos(camera_yaw) * movement_speed;
+            camera_z -= sin(camera_yaw) * movement_speed;
         }
         if (pressed.c[0].C_right)
         {
-            camera_x -= cos(camera_yaw) * 0.1f;
-            camera_z += sin(camera_yaw) * 0.1f;
+            camera_x -= cos(camera_yaw) * movement_speed;
+            camera_z += sin(camera_yaw) * movement_speed;
         }
         if (pressed.c[0].C_down)
         {
-            camera_x -= sin(camera_yaw) * 0.1f;
-            camera_z -= cos(camera_yaw) * 0.1f;
+            camera_x -= sin(camera_yaw) * movement_speed;
+            camera_z -= cos(camera_yaw) * movement_speed;
         }
 
         render();
@@ -567,6 +644,12 @@ int main(void)
 			mixer_poll(buf, audio_get_buffer_length());
 			audio_write_end();
 		}
+
+        if (unprocessedCollision)
+        {
+            debugf("Collision! At x: %f y: %f\n", collision_x, collision_y);
+            unprocessedCollision = false;
+        }
         
 
         if (DEBUG_RDP)

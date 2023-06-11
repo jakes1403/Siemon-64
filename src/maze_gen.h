@@ -1,3 +1,5 @@
+// Maze from wikipedia
+// https://en.wikipedia.org/wiki/User:Dllu/Maze
 #include <stdio.h>
 #include <stdlib.h>
 #include <time.h>
@@ -15,8 +17,8 @@
 //#define movie   //this option spams bitmaps to illustrate each step of generation.
 
 long numin=1;     //Number of cells in the maze.
-#define xsize 10
-#define ysize 10
+#define xsize 100
+#define ysize 100
 
 void initialize();
 void generate();
