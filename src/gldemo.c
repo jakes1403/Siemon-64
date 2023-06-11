@@ -12,6 +12,10 @@
 
 #include <math.h>
 
+#include "perlin_noise.h"
+#include "maze_gen.h"
+
+
 // Set this to 1 to enable rdpq debug output.
 // The demo will only run for a single frame and stop.
 #define DEBUG_RDP 0
@@ -211,6 +215,38 @@ void draw_quad()
     glEnd();
 }
 
+#define WHITE debugf(" W ")
+#define BLACK debugf(" B ")
+#define RED   debugf(" R ")
+
+void renderMaze(int xspecial, int yspecial){
+	//save a bitmap file! the xspecial, yspecial pixel is coloured red.
+	int x, y;
+	int width=(xsize-1)*2-1;
+	int height=(ysize-1)*2-1;
+
+
+	//Actual writing of data begins here:
+	for(y = 0; y <= height - 1; y++){
+		for(x = 0; x <= width - 1; x++){
+			if(x%2 == 1 && y%2 == 1){
+				if(x/2+1 == xspecial && y/2+1 == yspecial) RED;
+				else{
+					if(MAZE[x/2+1][y/2+1].in) WHITE; else BLACK;
+				}
+			}else if(x%2 == 0 && y%2 == 0){
+				BLACK;
+			}else if(x%2 == 0 && y%2 == 1){
+				if(MAZE[x/2+1][y/2+1].left) BLACK; else WHITE;
+			}else if(x%2 == 1 && y%2 == 0){
+				if(MAZE[x/2+1][y/2+1].up) BLACK; else WHITE;
+			}
+		}
+        debugf("\n");
+	}
+	return;
+}
+
 void render()
 {
     surface_t *disp = display_get();
@@ -267,9 +303,11 @@ void render()
 
     static float simon_x = 0.0f, simon_y = 1.5f, simon_z = 6.0f;
 
-    simon_x += (camera_x - simon_x) * 0.005f;
-    simon_y += (camera_y - simon_y) * 0.005f;
-    simon_z += (camera_z - simon_z) * 0.005f;
+    simon_x += (camera_x - simon_x) * 0.005f * perlin2d(simon_x, simon_y, 0.1, 4) * 2.0f;
+    simon_y += (camera_y - simon_y) * 0.005f * perlin2d(simon_y, simon_x, 0.1, 4) * 1.5f;
+    simon_z += (camera_z - simon_z) * 0.005f * perlin2d(simon_x, simon_y, 0.2, 4) * 1.8f;
+
+    //debugf("%f\n", perlin2d(simon_x, simon_y, 0.2, 4));
 
     simon_x += sin(rotation*0.01f) * 0.05f;
     simon_y += fabs(sin(rotation*0.01f) * 0.05f);
@@ -283,7 +321,7 @@ void render()
     float dz = camera_z - simon_z;
 
     static float current_rotation = 0.0f;
-    current_rotation += (((atan2(dz, dx) * -(180.0 / PI)) + 90.0f) - current_rotation) * 0.05f;
+    current_rotation += (((atan2(dz, dx) * -(180.0 / PI)) + 90.0f) - current_rotation) * 0.05f * perlin2d(simon_x, simon_y, 0.1, 4);
 
     glRotatef(current_rotation, 0, 1, 0);
 
@@ -392,6 +430,11 @@ int main(void)
     static int jumpFrameCount = 0;
 
     static bool doingJump = false;
+
+    //srand((unsigned int)time(NULL)); //seed random number generator with system time
+	initialize();      //initialize the maze
+	generate();        //generate the maze
+	savebmp(0,0);
 
     //wav64_play(&sfx_monosample, CHANNEL_MUSIC);
 
