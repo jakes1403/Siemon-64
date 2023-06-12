@@ -26,23 +26,16 @@
 #define CHANNEL_SFX2    1
 #define CHANNEL_MUSIC   2
 
-typedef struct {
-    float x, y, z;
-    float rotation;
-} Object;
 
-void lookAt(Object* obj, float camX, float camZ) {
-    float dx = camX - obj->x;
-    float dz = camZ - obj->z;
-    
-    obj->rotation = atan2(dz, dx);
-}
+static struct controller_data pressed;
+static struct controller_data down;
 
 const float floor_y = 2.5f;
-static float camera_x = cube_size * 2, camera_y = floor_y, camera_z = cube_size * 2;
-static float camera_pitch = 0.0f, camera_yaw = 0.0f;
+static float camera_x, camera_y, camera_z;
+static float camera_pitch, camera_yaw;
 
-static uint32_t animation = 3283;
+static uint32_t game_time;
+static uint32_t global_time;
 
 const float look_sensitivity = 0.1f;
 
@@ -52,17 +45,6 @@ static surface_t zbuffer;
 static bool fog_enabled = true;
 
 static const GLfloat environment_color[] = { 0.1f, 0.03f, 0.2f, 1.f };
-
-// static const GLfloat light_pos[8][4] = {
-//     { 1, 0, 0, 0 },
-//     { -1, 0, 0, 0 },
-//     { 0, 0, 1, 0 },
-//     { 0, 0, -1, 0 },
-//     { 8, 3, 0, 1 },
-//     { -8, 3, 0, 1 },
-//     { 0, 3, 8, 1 },
-//     { 0, 3, -8, 1 },
-// };
 
 static const GLfloat light_diffuse[8][4] = {
     { 1.0f, 0.0f, 0.0f, 1.0f },
@@ -75,7 +57,7 @@ static const GLfloat light_diffuse[8][4] = {
     { 1.0f, 1.0f, 1.0f, 1.0f },
 };
 
-#define SPRITE_COUNT 24
+#define SPRITE_COUNT 31
 
 static const char *texture_path[SPRITE_COUNT] = {
     "rom:/wallTex.sprite",
@@ -101,7 +83,14 @@ static const char *texture_path[SPRITE_COUNT] = {
     "rom:/U_1.sprite",
     "rom:/U_2.sprite",
     "rom:/WQ_1.sprite",
-    "rom:/WQ_2.sprite"
+    "rom:/WQ_2.sprite",
+    "rom:/S.sprite",
+    "rom:/I.sprite",
+    "rom:/E.sprite",
+    "rom:/M.sprite",
+    "rom:/O.sprite",
+    "rom:/N.sprite",
+    "rom:/start.sprite",
 };
 
 static GLuint textures[SPRITE_COUNT];
@@ -109,25 +98,22 @@ static GLuint textures[SPRITE_COUNT];
 static sprite_t *sprites[SPRITE_COUNT];
 
 // The gravitational constant in m/s^2
-#define GRAVITY 9.81
-// The time at which the jump reaches its peak in seconds
-#define TIME_TO_PEAK 0.5
-// The peak height of the jump in meters
-#define PEAK_HEIGHT 0.9
+#define GRAVITY 15.0
+// The time at which the jump reaches its peak in seconds, decreased to make the jump quicker
+#define TIME_TO_PEAK 0.4
+// The peak height of the jump in meters, decreased to make the jump shorter
+#define PEAK_HEIGHT 0.7
 
 float jump_height(float time) {
     // Calculate the initial velocity needed to reach the peak height
     float initial_velocity = GRAVITY * TIME_TO_PEAK;
-    
+
     // The jump height at the given time is determined by the kinematic equation:
     // h(t) = v_0 * t - 0.5 * g * t^2
     // where v_0 is the initial velocity, g is the acceleration due to gravity, 
     // and t is the time since the start of the jump
     float height = initial_velocity * time - 0.5 * GRAVITY * pow(time, 2);
-    
-    // If the height is negative (which can happen after the "downward" part of the jump),
-    // clamp it to 0
-    
+
     return height;
 }
 
@@ -144,7 +130,7 @@ void load_texture(GLenum target, sprite_t *sprite)
 
 
 
-void setup()
+void setup_renderer()
 {
     zbuffer = surface_alloc(FMT_RGBA16, display_get_width(), display_get_height());
 
@@ -165,13 +151,8 @@ void setup()
     glEnable(GL_CULL_FACE);
     glEnable(GL_NORMALIZE);
 
-    float aspect_ratio = (float)display_get_width() / (float)display_get_height();
-    float near_plane = 1.0f;
-    float far_plane = 50.0f;
-
     glMatrixMode(GL_PROJECTION);
     glLoadIdentity();
-    glFrustum(-near_plane*aspect_ratio, near_plane*aspect_ratio, -near_plane, near_plane, near_plane, far_plane);
 
     glMatrixMode(GL_MODELVIEW);
     glLoadIdentity();
@@ -235,7 +216,7 @@ void setup()
 
 void draw_quad()
 {
-    int animation_frame = 4 + ((animation / 10) % 10) * 2;
+    int animation_frame = 4 + ((game_time / 10) % 10) * 2;
     // Original plane
     // Top left with textures[4]
     glBindTexture(GL_TEXTURE_2D, textures[animation_frame]);
@@ -249,6 +230,20 @@ void draw_quad()
         glVertex3f(0, 1, 0);
         glTexCoord2f(1, 1);
         glVertex3f(0, 0, 0);
+    glEnd();
+
+    // Mirrored plane
+    // Top right with textures[4]
+    glBegin(GL_TRIANGLE_STRIP);
+        glNormal3f(0, 1, 0);
+        glTexCoord2f(1, 0); // Reverse texture mapping
+        glVertex3f(0, 1, 0);
+        glTexCoord2f(1, 1); // Reverse texture mapping
+        glVertex3f(0, 0, 0);
+        glTexCoord2f(0, 0); // Reverse texture mapping
+        glVertex3f(1, 1, 0);
+        glTexCoord2f(0, 1); // Reverse texture mapping
+        glVertex3f(1, 0, 0);
     glEnd();
 
     // Bottom left with textures[5]
@@ -265,23 +260,7 @@ void draw_quad()
         glVertex3f(0, -1, 0);
     glEnd();
 
-    // Mirrored plane
-    // Top right with textures[4]
-    glBindTexture(GL_TEXTURE_2D, textures[animation_frame]);
-    glBegin(GL_TRIANGLE_STRIP);
-        glNormal3f(0, 1, 0);
-        glTexCoord2f(1, 0); // Reverse texture mapping
-        glVertex3f(0, 1, 0);
-        glTexCoord2f(1, 1); // Reverse texture mapping
-        glVertex3f(0, 0, 0);
-        glTexCoord2f(0, 0); // Reverse texture mapping
-        glVertex3f(1, 1, 0);
-        glTexCoord2f(0, 1); // Reverse texture mapping
-        glVertex3f(1, 0, 0);
-    glEnd();
-
     // Bottom right with textures[5]
-    glBindTexture(GL_TEXTURE_2D, textures[animation_frame + 1]);
     glBegin(GL_TRIANGLE_STRIP);
         glNormal3f(0, 1, 0);
         glTexCoord2f(1, 0); // Reverse texture mapping
@@ -404,16 +383,71 @@ void renderMaze(int xspecial, int yspecial){
 	return;
 }
 
-void render()
-{
-    surface_t *disp = display_get();
+static float simon_x, simon_y, simon_z;
 
-    rdpq_attach(disp, &zbuffer);
+static float rotation;
+
+static float current_rotation = 0.0f;
+
+float distance3D(float x1, float y1, float z1, float x2, float y2, float z2) {
+    float dx = x2 - x1;
+    float dy = y2 - y1;
+    float dz = z2 - z1;
+    
+    return sqrt(dx*dx + dy*dy + dz*dz);
+}
+
+void render_game()
+{
 
     gl_context_begin();
 
     glClearColor(environment_color[0], environment_color[1], environment_color[2], environment_color[3]);
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+
+    glMatrixMode(GL_PROJECTION);
+    glLoadIdentity();
+    glOrtho(0.0, display_get_width(), display_get_height(), 0.0, -1.0, 1.0);
+    glMatrixMode(GL_MODELVIEW);
+    glLoadIdentity();
+
+    glEnable(GL_BLEND);
+    glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+    
+    float distance_from_simon = distance3D(simon_x, simon_y, simon_z, camera_x, camera_y, camera_z);
+
+    float red_value = 1.0f;
+
+    static const float distance_cutoff = 25.0f;
+
+    if (distance_from_simon < distance_cutoff)
+    {
+        red_value = distance_from_simon / distance_cutoff;
+    }
+
+    // The color you want to tint with (RGBA)
+    float red = 1.0f;   // range: 0-1
+    float green = red_value; // range: 0-1
+    float blue = red_value;  // range: 0-1
+    float alpha = 1.0f; // range: 0-1, 0 means fully transparent, 1 means fully opaque
+
+    glColor4f(red, green, blue, alpha);
+    glBegin(GL_QUADS);
+    glVertex2i(0, 0);
+    glVertex2i(display_get_width(), 0);
+    glVertex2i(display_get_width(), display_get_height());
+    glVertex2i(0, display_get_height());
+    glEnd();
+
+    glDisable(GL_BLEND);
+
+    float aspect_ratio = (float)display_get_width() / (float)display_get_height();
+    float near_plane = 1.0f;
+    float far_plane = 50.0f;
+
+    glMatrixMode(GL_PROJECTION);
+    glLoadIdentity();
+    glFrustum(-near_plane*aspect_ratio, near_plane*aspect_ratio, -near_plane, near_plane, near_plane, far_plane);
 
     float look_x = sin(camera_yaw), look_y = tan(-camera_pitch), look_z = cos(camera_yaw);
 
@@ -422,8 +456,6 @@ void render()
     gluLookAt(camera_x, camera_y, camera_z,
               camera_x + look_x, camera_y + look_y, camera_z + look_z,
               0.0f, 1.0f, 0.0f);
-
-    float rotation = animation * 0.5f;
 
     glPushMatrix();
 
@@ -460,28 +492,15 @@ void render()
 
     glPushMatrix();
 
-    static float simon_x = 0.0f, simon_y = 1.5f, simon_z = 6.0f;
 
-    simon_x += (camera_x - simon_x) * 0.005f * perlin2d(simon_x, simon_y, 0.1, 4) * 2.0f;
-    simon_y += (camera_y - simon_y) * 0.005f * perlin2d(simon_y, simon_x, 0.1, 4) * 1.5f;
-    simon_z += (camera_z - simon_z) * 0.005f * perlin2d(simon_x, simon_y, 0.2, 4) * 1.8f;
-
-    //debugf("%f\n", perlin2d(simon_x, simon_y, 0.2, 4));
-
-    simon_x += sin(rotation*0.01f) * 0.05f;
-    simon_y += fabs(sin(rotation*0.01f) * 0.05f);
-    simon_z += cos(rotation*0.01f) * 0.05f;
 	//$Simon.global_position.x += cos($Timer.time_left * 2.0) * 8.0 * _noise2.get_noise_1d($Timer.time_left)
 	//$Simon.global_position.y += sin($Timer.time_left * 2.0) * 4.0 * _noise3.get_noise_1d($Timer.time_left)
 
     glTranslatef(simon_x, simon_y, simon_z);
 
-    float dx = camera_x - simon_x;
-    float dz = camera_z - simon_z;
-
-    static float current_rotation = 0.0f;
-    current_rotation += (((atan2(dz, dx) * -(180.0 / PI)) + 90.0f) - current_rotation) * 0.05f * perlin2d(simon_x, simon_y, 0.1, 4);
-
+    // float dx = camera_x - simon_x;
+    // float dz = camera_z - simon_z;
+    
     glRotatef(current_rotation, 0, 1, 0);
 
     //glRotatef(90.0f, 1, 0, 0);
@@ -519,40 +538,140 @@ void render()
 
     // glPopMatrix();
 
-    glPushMatrix();
-
-    glTranslatef(0, 6, 0);
-    glRotatef(-rotation*2.46f, 0, 1, 0);
-
-    glDisable(GL_TEXTURE_2D);
-    glDisable(GL_CULL_FACE);
-    //glDisable(GL_LIGHTING);
-    glEnable(GL_BLEND);
-    glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
-
-    rdpq_debug_log_msg("Primitives");
-    glColor4f(1, 1, 1, 0.4f);
-    prim_test();
-
-    glEnable(GL_CULL_FACE);
-    glDisable(GL_BLEND);
-
-    glPopMatrix();
-
     
     gl_context_end();
-
-    //graphics_set_font_sprite( custom_font );
-
-
-    rdpq_detach_show();
-
-    
 }
 
 float clamp(float val, float min, float max) {
     return val < min ? min : val > max ? max : val;
 }
+
+void step_through_game()
+{
+    static int jumpFrameCount = 0;
+
+    static bool doingJump = false;
+
+    game_time++;
+
+    if (down.c[0].A && !doingJump) {
+        jumpFrameCount = 0;
+        doingJump = true;
+    }
+
+    if (doingJump)
+    {
+        float jump_val = jump_height(jumpFrameCount++ / 60.0f);
+        
+
+        if (jump_val < 0.0f)
+        {
+            doingJump = false;
+        }
+        else
+        {
+            camera_y = floor_y + jump_val;
+        }
+    }
+
+    if (down.c[0].L) {
+        fog_enabled = !fog_enabled;
+        if (fog_enabled) {
+            glEnable(GL_FOG);
+        } else {
+            glDisable(GL_FOG);
+        }
+    }
+
+    float y = pressed.c[0].y / 128.f;
+    float x = pressed.c[0].x / 128.f;
+    float mag = x*x + y*y;
+
+    if (fabsf(mag) > 0.01f) {
+        //distance += y * 0.2f;
+        //cam_rotate = cam_rotate - x * 1.2f;
+        // Yaw is left and right
+        camera_yaw -= x * look_sensitivity;
+        camera_pitch -= y * look_sensitivity;
+
+        //debugf("%f\n", camera_pitch);
+        camera_pitch = clamp(camera_pitch, -1.5f, 1.5f);
+    }
+
+    static float movement_speed = 0.3f;
+
+    if (down.c[0].up)
+    {
+        movement_speed += 0.1f;
+    }
+    if (down.c[0].down)
+    {
+        movement_speed -= 0.1f;
+    }
+
+    if (pressed.c[0].C_up)
+    {
+        camera_x += sin(camera_yaw) * movement_speed;
+        camera_z += cos(camera_yaw) * movement_speed;
+    }
+    if (pressed.c[0].C_left)
+    {
+        camera_x += cos(camera_yaw) * movement_speed;
+        camera_z -= sin(camera_yaw) * movement_speed;
+    }
+    if (pressed.c[0].C_right)
+    {
+        camera_x -= cos(camera_yaw) * movement_speed;
+        camera_z += sin(camera_yaw) * movement_speed;
+    }
+    if (pressed.c[0].C_down)
+    {
+        camera_x -= sin(camera_yaw) * movement_speed;
+        camera_z -= cos(camera_yaw) * movement_speed;
+    }
+
+    if (unprocessedCollision)
+    {
+        debugf("Collision! At x: %f y: %f\n", collision_x, collision_y);
+        unprocessedCollision = false;
+    }
+
+    simon_x += (camera_x - simon_x) * 0.005f * perlin2d(simon_x, simon_y, 0.1, 4) * 2.0f;
+    simon_y += (camera_y - simon_y) * 0.005f * perlin2d(simon_y, simon_x, 0.1, 4) * 1.5f;
+    simon_z += (camera_z - simon_z) * 0.005f * perlin2d(simon_x, simon_y, 0.2, 4) * 1.8f;
+
+    //debugf("%f\n", perlin2d(simon_x, simon_y, 0.2, 4));
+
+    rotation = game_time * 0.5f;
+
+    simon_x += sin(rotation*0.01f) * 0.05f;
+    simon_y += fabs(sin(rotation*0.01f) * 0.05f);
+    simon_z += cos(rotation*0.01f) * 0.05f;
+
+    float dx = camera_x - simon_x;
+    float dz = camera_z - simon_z;
+
+    float target_rotation = atan2(dz, dx) * -(180.0 / PI) + 90.0f;
+
+    // calculate the difference and make sure it stays in the -180 to 180 range
+    float rotation_difference = fmodf((target_rotation - current_rotation + 180.0f), 360.0f) - 180.0f;
+    current_rotation += rotation_difference * 0.05f * perlin2d(simon_x, simon_y, 0.1, 4);
+}
+
+void setup_game()
+{
+    game_time = 3283;
+    camera_x = cube_size * 2, camera_y = floor_y, camera_z = cube_size * 2;
+
+    camera_pitch = 0.0f, camera_yaw = 0.0f;
+
+    simon_x = 0.0f, simon_y = 1.5f, simon_z = 60.0f;
+
+    srand(global_time); //seed random number generator with system time
+	initialize_maze_gen();      //initialize the maze
+	generate_maze();        //generate the maze
+}
+
 
 int main(void)
 {
@@ -575,169 +694,91 @@ int main(void)
     rdpq_init();
     gl_init();
 
-#if DEBUG_RDP
-    rdpq_debug_start();
-    rdpq_debug_log(true);
-#endif
+    global_time = 0;
 
-    setup();
+    setup_renderer();
 
     controller_init();
-
-    static int jumpFrameCount = 0;
-
-    static bool doingJump = false;
-
-    //srand((unsigned int)time(NULL)); //seed random number generator with system time
-	initialize();      //initialize the maze
-	generate();        //generate the maze
 
     glEnable(GL_FOG);
 
     wav64_play(&sfx_monosample, CHANNEL_MUSIC);
 
+    static bool is_paused = false;
+
+    //setup_game();
+
+    bool is_main_menu = true;
+
     debugf("Demo by jakes1403. Modified from the libdragon demo.\n");
 
-#if !DEBUG_RDP
     while (1)
-#endif
     {
+        surface_t *disp = display_get();
+
+        rdpq_attach_clear(disp, &zbuffer);
+        global_time++;
         controller_scan();
-        struct controller_data pressed = get_keys_pressed();
-        struct controller_data down = get_keys_down();
+        pressed = get_keys_pressed();
+        down = get_keys_down();
 
-        animation++;
-
-        if (down.c[0].A && !doingJump) {
-            jumpFrameCount = 0;
-            doingJump = true;
-        }
-
-
-
-        //if (pressed.c[0].A) {
-            
-        //}
-
-        if (doingJump)
+        if (!is_main_menu)
         {
-            float jump_val = jump_height(jumpFrameCount++ / 60.0f);
-            
-
-            if (jump_val < 0.0f)
+            if (down.c[0].start) {
+                is_paused = !is_paused;
+            }
+            if (down.c[0].right) {
+                setup_game();
+            }
+            if (!is_paused)
             {
-                doingJump = false;
+                step_through_game();
             }
-            else
-            {
-                camera_y = floor_y + jump_val;
-            }
-        }
-
-        //if (pressed.c[0].B) {
-            //animation--;
-        ///}
-
-        if (down.c[0].start) {
-            debugf("%ld\n", animation);
-        }
-
-        // if (down.c[0].R) {
-        //     shade_model = shade_model == GL_SMOOTH ? GL_FLAT : GL_SMOOTH;
-        //     glShadeModel(shade_model);
-        // }
-
-        if (down.c[0].L) {
-            fog_enabled = !fog_enabled;
-            if (fog_enabled) {
-                glEnable(GL_FOG);
-            } else {
-                glDisable(GL_FOG);
-            }
-        }
-
-        // if (down.c[0].C_up) {
-        //     if (sphere_rings < SPHERE_MAX_RINGS) {
-        //         sphere_rings++;
-        //     }
-
-        //     if (sphere_segments < SPHERE_MAX_SEGMENTS) {
-        //         sphere_segments++;
-        //     }
-
-        //     make_sphere_mesh();
-        // }
-
-        // if (down.c[0].C_down) {
-        //     if (sphere_rings > SPHERE_MIN_RINGS) {
-        //         sphere_rings--;
-        //     }
-
-        //     if (sphere_segments > SPHERE_MIN_SEGMENTS) {
-        //         sphere_segments--;
-        //     }
             
-        //     make_sphere_mesh();
-        // }
+            render_game();
 
-        //if (down.c[0].C_right) {
-            //texture_index = (texture_index + 1) % 4;
-        //}
+            if (is_paused)
+            {
+                graphics_set_color( 0xFFFFFFFF, 0x0 );
 
-        float y = pressed.c[0].y / 128.f;
-        float x = pressed.c[0].x / 128.f;
-        float mag = x*x + y*y;
-
-        if (fabsf(mag) > 0.01f) {
-            //distance += y * 0.2f;
-            //cam_rotate = cam_rotate - x * 1.2f;
-
-            camera_yaw -= x * look_sensitivity;
-            camera_pitch -= y * look_sensitivity;
-
-            //debugf("%f\n", camera_pitch);
-            camera_pitch = clamp(camera_pitch, -1.5f, 1.5f);
+                graphics_draw_text( disp, 20, 20, "Pause" );
+            }
         }
 
-        static float movement_speed = 0.1f;
-
-        if (down.c[0].up)
+        if (is_main_menu)
         {
-            movement_speed += 0.1f;
-        }
-        if (down.c[0].down)
-        {
-            movement_speed -= 0.1f;
+            rdpq_set_mode_standard();
+            rdpq_mode_filter(FILTER_POINT);
+            rdpq_mode_alphacompare(1); 
+
+            //graphics_set_font_sprite( custom_font );
+
+            for (int i = 0; i < 6; i++)
+            {
+                float scaling = 1.0 + fabs(sin((global_time / 100.0f) + i));
+                rdpq_sprite_blit(sprites[24 + i], 5 + (50 * i), 30 + 10 * sin((global_time / 50.0f) + i), &(rdpq_blitparms_t){
+                    .scale_x = scaling, .scale_y = scaling, .theta = 0.2 * sin((global_time / 60.0f) + i),
+                });
+            }
+
+            rdpq_sprite_blit(sprites[30], 160, 200, &(rdpq_blitparms_t){
+                .scale_x = 1.0, .scale_y = 1.0, .theta = 0.2 * sin((global_time / 60.0f))
+            });
+
+            if (down.c[0].start) {
+                is_main_menu = false;
+                setup_game();
+            }
         }
 
-        if (pressed.c[0].C_up)
-        {
-            camera_x += sin(camera_yaw) * movement_speed;
-            camera_z += cos(camera_yaw) * movement_speed;
-        }
-        if (pressed.c[0].C_left)
-        {
-            camera_x += cos(camera_yaw) * movement_speed;
-            camera_z -= sin(camera_yaw) * movement_speed;
-        }
-        if (pressed.c[0].C_right)
-        {
-            camera_x -= cos(camera_yaw) * movement_speed;
-            camera_z += sin(camera_yaw) * movement_speed;
-        }
-        if (pressed.c[0].C_down)
-        {
-            camera_x -= sin(camera_yaw) * movement_speed;
-            camera_z -= cos(camera_yaw) * movement_speed;
-        }
+        //graphics_draw_text( disp, 0, 0, "Using custom font!" );
 
-        if (unprocessedCollision)
-        {
-            debugf("Collision! At x: %f y: %f\n", collision_x, collision_y);
-            unprocessedCollision = false;
-        }
+        //graphics_set_color( 0xFFFFFF00, 0x0 );
 
-        render();
+        //graphics_draw_text( disp, 20, 20, "Using default font!" );
+
+
+        rdpq_detach_show();
 
         if (audio_can_write()) {    	
 			short *buf = audio_write_begin();
@@ -746,10 +787,6 @@ int main(void)
 		}
 
 
-        
-
-        if (DEBUG_RDP)
-            rspq_wait();
     }
 
 }

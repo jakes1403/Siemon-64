@@ -2,7 +2,6 @@
 // https://en.wikipedia.org/wiki/User:Dllu/Maze
 #include <stdio.h>
 #include <stdlib.h>
-#include <time.h>
 
 #define UP 0     //-y
 #define DOWN 1   //+y
@@ -20,9 +19,8 @@ long numin=1;     //Number of cells in the maze.
 #define xsize 100
 #define ysize 100
 
-void initialize();
-void generate();
-void savebmp(int xspecial, int yspecial);
+void initialize_maze_gen();
+void generate_maze();
 
 typedef struct cell {
 	bool in;  //Is this cell in the maze?
@@ -33,7 +31,8 @@ typedef struct cell {
 
 static cell MAZE[xsize][ysize];
 
-void initialize(){
+void initialize_maze_gen(){
+    numin=1;
 	//Initialize the maze!
 	for(int x=0;x<xsize;x++){
 		for(int y=0;y<ysize;y++){
@@ -42,12 +41,14 @@ void initialize(){
 			//All maze cells have all walls existing by default, except the perimeter cells.
 			MAZE[x][y].up   = (x==0||x==xsize-1||y==0)?0:1;
 			MAZE[x][y].left = (x==0||y==0||y==ysize-1)?0:1;
+            MAZE[x][y].prevx = 0;
+            MAZE[x][y].prevy = 0;
 		}
 	}
 	return;
 }
 
-void generate(){
+void generate_maze(){
 	int xcur=1, ycur=1;//start growing from the corner. It could theoretically start growing from anywhere, doesn't matter.
 	MAZE[xcur][ycur].in = 1;
 	int whichway;

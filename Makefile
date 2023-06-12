@@ -16,7 +16,7 @@ all: gldemo.z64
 filesystem/%.sprite: assets/%.png
 	@mkdir -p $(dir $@)
 	@echo "    [SPRITE] $@"
-	@$(N64_MKSPRITE) -f RGBA16 --compress -o "$(dir $@)" "$<"
+	@$(N64_MKSPRITE) -f AUTO --compress -o "$(dir $@)" "$<"
 
 filesystem/%.wav64: assets/%.wav
 	@mkdir -p $(dir $@)
