@@ -23,9 +23,10 @@
 #define PI 3.14159265
 
 #define CHANNEL_SFX1    0
-#define CHANNEL_SFX2    1
+#define CHANNEL_VOICE    1
 #define CHANNEL_MUSIC   2
 
+static wav64_t sfx_monosample, kill_sample;
 
 static struct controller_data pressed;
 static struct controller_data down;
@@ -45,17 +46,6 @@ static surface_t zbuffer;
 static bool fog_enabled = true;
 
 static const GLfloat environment_color[] = { 0.1f, 0.03f, 0.2f, 1.f };
-
-static const GLfloat light_diffuse[8][4] = {
-    { 1.0f, 0.0f, 0.0f, 1.0f },
-    { 0.0f, 1.0f, 0.0f, 1.0f },
-    { 0.0f, 0.0f, 1.0f, 1.0f },
-    { 1.0f, 1.0f, 0.0f, 1.0f },
-    { 1.0f, 0.0f, 1.0f, 1.0f },
-    { 0.0f, 1.0f, 1.0f, 1.0f },
-    { 1.0f, 1.0f, 1.0f, 1.0f },
-    { 1.0f, 1.0f, 1.0f, 1.0f },
-};
 
 #define SPRITE_COUNT 31
 
@@ -90,7 +80,7 @@ static const char *texture_path[SPRITE_COUNT] = {
     "rom:/M.sprite",
     "rom:/O.sprite",
     "rom:/N.sprite",
-    "rom:/start.sprite",
+    "rom:/start.sprite"
 };
 
 static GLuint textures[SPRITE_COUNT];
@@ -157,24 +147,11 @@ void setup_renderer()
     glMatrixMode(GL_MODELVIEW);
     glLoadIdentity();
 
-    glLightModelfv(GL_LIGHT_MODEL_AMBIENT, environment_color);
-    glLightModeli(GL_LIGHT_MODEL_LOCAL_VIEWER, GL_TRUE);
-
-    float light_radius = 10.0f;
-
-    for (uint32_t i = 0; i < 8; i++)
-    {
-        glEnable(GL_LIGHT0 + i);
-        glLightfv(GL_LIGHT0 + i, GL_DIFFUSE, light_diffuse[i]);
-        glLightf(GL_LIGHT0 + i, GL_LINEAR_ATTENUATION, 2.0f/light_radius);
-        glLightf(GL_LIGHT0 + i, GL_QUADRATIC_ATTENUATION, 1.0f/(light_radius*light_radius));
-    }
-
     GLfloat mat_diffuse[] = { 1.0f, 1.0f, 1.0f, 1.0f };
     glMaterialfv(GL_FRONT_AND_BACK, GL_AMBIENT_AND_DIFFUSE, mat_diffuse);
 
-    glFogf(GL_FOG_START, 5);
-    glFogf(GL_FOG_END, 20);
+    glFogf(GL_FOG_START, 2);
+    glFogf(GL_FOG_END, 30);
     glFogfv(GL_FOG_COLOR, environment_color);
 
     glGenTextures(SPRITE_COUNT, textures);
@@ -304,21 +281,40 @@ int check_collision(float r, float x, float y, float z, float s, float cx, float
     return dist_sq <= r * r;
 }
 
-#define MAX_LENGTH (cube_size * 5)
+#define MAX_LENGTH (cube_size * 6)
 
-static float collision_x = 0.0f, collision_y = 0.0f;
+struct Maze_Segment {
+    float x, y;
+};
 
-static bool unprocessedCollision = false;
+static uint32_t number_segments;
+
+struct Maze_Segment maze_segments[(MAX_LENGTH * 2) * (MAX_LENGTH * 2)];
+
+typedef struct Collision_Info {
+    float x, y;
+    bool hadCollision;
+} Collision_Info;
+
+Collision_Info check_for_maze_collision()
+{
+    Collision_Info inf;
+    inf.hadCollision = false;
+    for (uint32_t i = 0; i < number_segments; i++)
+    {
+        if (check_collision(2.0f, camera_x, camera_y, camera_z, cube_size * 2, maze_segments[i].x, cube_size, maze_segments[i].y))
+        {
+            inf.x = maze_segments[i].x;
+            inf.y = maze_segments[i].y;
+            inf.hadCollision = true;
+        }
+    }
+    return inf;
+}
 
 void drawCube (float x, float y)
 {
     glBindTexture(GL_TEXTURE_2D, textures[0]);
-    if (check_collision(1.0f, camera_x, camera_y, camera_z, cube_size * 2, x, cube_size, y))
-    {
-        collision_x = x;
-        collision_y = y;
-        unprocessedCollision = true;
-    }
     if (calculate_distance(x, y, camera_x, camera_z) < MAX_LENGTH)
     {
         glTranslatef(x, cube_size,y);
@@ -326,6 +322,10 @@ void drawCube (float x, float y)
         draw_cube();
         glTranslatef(-x, -cube_size,-y);
     }
+    maze_segments[number_segments].x = x;
+    maze_segments[number_segments].y = y;
+
+    number_segments++;
     
 }
 
@@ -362,6 +362,7 @@ void renderMaze(int xspecial, int yspecial){
 
     int lowerBoundY = max(0, adjustedCameraY - (int)MAX_LENGTH);
     int upperBoundY = min(height - 1, adjustedCameraY + (int)MAX_LENGTH);
+    number_segments = 0;
 
     //Actual writing of data begins here:
     for(y = lowerBoundY; y <= upperBoundY; y++){
@@ -397,6 +398,39 @@ float distance3D(float x1, float y1, float z1, float x2, float y2, float z2) {
     return sqrt(dx*dx + dy*dy + dz*dz);
 }
 
+void drawCubeBetweenPoints(float x1, float y1, float z1, float x2, float y2, float z2) {
+    float dx = x2 - x1;
+    float dy = y2 - y1;
+    float dz = z2 - z1;
+
+    float cx = (x1 + x2) / 2;
+    float cy = (y1 + y2) / 2;
+    float cz = (z1 + z2) / 2;
+
+    float d = sqrt(dx * dx + dy * dy + dz * dz); // Distance between points
+    float ax = 57.2957795*acos( dz/d ); // The angle in the x-y plane 
+    float ay = 57.2957795*atan2( dy, dx ); // The angle in the x-z plane 
+
+    glPushMatrix();
+
+    // Translate the cube to center
+    glTranslatef(cx, cy, cz);
+
+    // Rotate the cube
+    glRotatef(ax, -1.0, 0.0, 0.0);
+    glRotatef(ay, 0.0, 1.0, 0.0);
+
+    // Scale the cube
+    glScalef(2, d, 2); // Assuming you want to keep the width and depth as 2
+
+    // Draw the cube
+    draw_cube();
+
+    glPopMatrix();
+}
+
+static const float distance_cutoff = 25.0f;
+
 void render_game()
 {
 
@@ -417,8 +451,6 @@ void render_game()
     float distance_from_simon = distance3D(simon_x, simon_y, simon_z, camera_x, camera_y, camera_z);
 
     float red_value = 1.0f;
-
-    static const float distance_cutoff = 25.0f;
 
     if (distance_from_simon < distance_cutoff)
     {
@@ -538,13 +570,22 @@ void render_game()
 
     // glPopMatrix();
 
-    
+    //glBindTexture(GL_TEXTURE_2D, textures[2]);
+
+    //drawCubeBetweenPoints(simon_x, simon_y, simon_z, camera_x, camera_y - 1.0, camera_z);
+
+
     gl_context_end();
 }
 
 float clamp(float val, float min, float max) {
     return val < min ? min : val > max ? max : val;
 }
+
+static bool hasDone = false;
+
+static float prev_camera_x;
+static float prev_camera_z;
 
 void step_through_game()
 {
@@ -600,40 +641,85 @@ void step_through_game()
 
     static float movement_speed = 0.3f;
 
-    if (down.c[0].up)
-    {
-        movement_speed += 0.1f;
-    }
-    if (down.c[0].down)
-    {
-        movement_speed -= 0.1f;
-    }
-
     if (pressed.c[0].C_up)
     {
+        prev_camera_x = camera_x;
+        prev_camera_z = camera_z;
+
         camera_x += sin(camera_yaw) * movement_speed;
         camera_z += cos(camera_yaw) * movement_speed;
+
+        Collision_Info collision = check_for_maze_collision();
+
+        // Check if there's been a collision
+        if (collision.hadCollision)
+        {
+            debugf("Collision! At x: %f y: %f\n", collision.x, collision.y);
+
+            // If there's been a collision, move player back to the previous position
+            camera_x = prev_camera_x;
+            camera_z = prev_camera_z;
+        }
     }
     if (pressed.c[0].C_left)
     {
+        prev_camera_x = camera_x;
+        prev_camera_z = camera_z;
+        
         camera_x += cos(camera_yaw) * movement_speed;
         camera_z -= sin(camera_yaw) * movement_speed;
+
+        Collision_Info collision = check_for_maze_collision();
+
+        // Check if there's been a collision
+        if (collision.hadCollision)
+        {
+            debugf("Collision! At x: %f y: %f\n", collision.x, collision.y);
+
+            // If there's been a collision, move player back to the previous position
+            camera_x = prev_camera_x;
+            camera_z = prev_camera_z;
+        }
     }
     if (pressed.c[0].C_right)
     {
+        prev_camera_x = camera_x;
+        prev_camera_z = camera_z;
+
         camera_x -= cos(camera_yaw) * movement_speed;
         camera_z += sin(camera_yaw) * movement_speed;
+
+        Collision_Info collision = check_for_maze_collision();
+
+        // Check if there's been a collision
+        if (collision.hadCollision)
+        {
+            debugf("Collision! At x: %f y: %f\n", collision.x, collision.y);
+
+            // If there's been a collision, move player back to the previous position
+            camera_x = prev_camera_x;
+            camera_z = prev_camera_z;
+        }
     }
     if (pressed.c[0].C_down)
     {
+        prev_camera_x = camera_x;
+        prev_camera_z = camera_z;
+        
         camera_x -= sin(camera_yaw) * movement_speed;
         camera_z -= cos(camera_yaw) * movement_speed;
-    }
 
-    if (unprocessedCollision)
-    {
-        debugf("Collision! At x: %f y: %f\n", collision_x, collision_y);
-        unprocessedCollision = false;
+        Collision_Info collision = check_for_maze_collision();
+
+        // Check if there's been a collision
+        if (collision.hadCollision)
+        {
+            debugf("Collision! At x: %f y: %f\n", collision.x, collision.y);
+
+            // If there's been a collision, move player back to the previous position
+            camera_x = prev_camera_x;
+            camera_z = prev_camera_z;
+        }
     }
 
     simon_x += (camera_x - simon_x) * 0.005f * perlin2d(simon_x, simon_y, 0.1, 4) * 2.0f;
@@ -656,6 +742,23 @@ void step_through_game()
     // calculate the difference and make sure it stays in the -180 to 180 range
     float rotation_difference = fmodf((target_rotation - current_rotation + 180.0f), 360.0f) - 180.0f;
     current_rotation += rotation_difference * 0.05f * perlin2d(simon_x, simon_y, 0.1, 4);
+
+    if (distance3D(simon_x, simon_y, simon_z, camera_x, camera_y, camera_z) < distance_cutoff)
+    {
+        if (!hasDone)
+        {
+            hasDone = true;
+            if (rand() % 100 < 30)
+            {
+                wav64_play(&kill_sample, CHANNEL_VOICE);
+            }
+        }
+        
+    }
+    else
+    {
+        hasDone = false;
+    }
 }
 
 void setup_game()
@@ -672,6 +775,13 @@ void setup_game()
 	generate_maze();        //generate the maze
 }
 
+// RANDN(n): generate a random number from 0 to n-1
+#define RANDN(n) ({ \
+	__builtin_constant_p((n)) ? \
+		(rand()%(n)) : \
+		(uint32_t)(((uint64_t)rand() * (n)) >> 32); \
+})
+
 
 int main(void)
 {
@@ -686,10 +796,10 @@ int main(void)
 
     display_init(RESOLUTION_320x240, DEPTH_16_BPP, 3, GAMMA_NONE, ANTIALIAS_RESAMPLE_FETCH_ALWAYS);
 
-    wav64_t sfx_monosample;
-
     wav64_open(&sfx_monosample, "rom:/dungeon_music.wav64");
 	wav64_set_loop(&sfx_monosample, true);
+
+    wav64_open(&kill_sample, "rom:/simon_kills.wav64");
 
     rdpq_init();
     gl_init();
@@ -711,6 +821,55 @@ int main(void)
     bool is_main_menu = true;
 
     debugf("Demo by jakes1403. Modified from the libdragon demo.\n");
+
+    rdpq_font_t *fnt1 = rdpq_font_load("rom:/Pacifico.font64");
+
+    sprite_t* tiles_sprite = sprite_load("rom:/tiles.sprite");
+
+
+    surface_t tiles_surf = sprite_get_pixels(tiles_sprite);
+
+    // Create a block for the background, so that we can replay it later.
+    rspq_block_begin();
+
+    // Check if the sprite was compiled with a paletted format. Normally
+    // we should know this beforehand, but for this demo we pretend we don't
+    // know. This also shows how rdpq can transparently work in both modes.
+    bool tlut = false;
+    tex_format_t tiles_format = sprite_get_format(tiles_sprite);
+    if (tiles_format == FMT_CI4 || tiles_format == FMT_CI8) {
+        // If the sprite is paletted, turn on palette mode and load the
+        // palette in TMEM. We use the mode stack for demonstration,
+        // so that we show how a block can temporarily change the current
+        // render mode, and then restore it at the end.
+        rdpq_mode_push();
+        rdpq_mode_tlut(TLUT_RGBA16);
+        rdpq_tex_upload_tlut(sprite_get_palette(tiles_sprite), 0, 16);
+        tlut = true;
+    }
+    uint32_t tile_width = tiles_sprite->width / tiles_sprite->hslices;
+    uint32_t tile_height = tiles_sprite->height / tiles_sprite->vslices;
+
+    tile_width *= 2;
+    tile_height *= 2;
+ 
+    for (uint32_t ty = 0; ty < display_get_height(); ty += tile_height)
+    {
+        for (uint32_t tx = 0; tx < display_get_width(); tx += tile_width)
+        {
+            // Load a random tile among the 4 available in the texture,
+            // and draw it as a rectangle.
+            // Notice that this code is agnostic to both the texture format
+            // and the render mode (standard vs copy), it will work either way.
+            int s = RANDN(2)*32, t = RANDN(2)*32;
+            rdpq_tex_upload_sub(TILE0, &tiles_surf, NULL, s, t, s+32, t+32);
+            rdpq_texture_rectangle(TILE0, tx, ty, tx+32, ty+32, s, t);
+        }
+    }
+    
+    // Pop the mode stack if we pushed it before
+    if (tlut) rdpq_mode_pop();
+    rspq_block_t* tiles_block = rspq_block_end();
 
     while (1)
     {
@@ -744,14 +903,16 @@ int main(void)
                 graphics_draw_text( disp, 20, 20, "Pause" );
             }
         }
-
+        
         if (is_main_menu)
         {
+            rdpq_set_mode_copy(false);
+            // rdpq_set_mode_standard();
+            rspq_block_run(tiles_block);
+
             rdpq_set_mode_standard();
             rdpq_mode_filter(FILTER_POINT);
             rdpq_mode_alphacompare(1); 
-
-            //graphics_set_font_sprite( custom_font );
 
             for (int i = 0; i < 6; i++)
             {
@@ -764,6 +925,12 @@ int main(void)
             rdpq_sprite_blit(sprites[30], 160, 200, &(rdpq_blitparms_t){
                 .scale_x = 1.0, .scale_y = 1.0, .theta = 0.2 * sin((global_time / 60.0f))
             });
+
+            rdpq_font_begin(RGBA32(0xED, 0xAE, 0x49, 0xFF));
+            rdpq_font_position(20, 50);
+            rdpq_font_scale(2.0, 2.0);
+            rdpq_font_print(fnt1, "Begin");
+            rdpq_font_end();
 
             if (down.c[0].start) {
                 is_main_menu = false;
