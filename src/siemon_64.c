@@ -45,6 +45,8 @@ static surface_t zbuffer;
 
 static bool fog_enabled = true;
 
+static rdpq_font_t *fnt1;
+
 static const GLfloat environment_color[] = { 0.1f, 0.03f, 0.2f, 1.f };
 
 #define SPRITE_COUNT 31
@@ -81,6 +83,97 @@ static const char *texture_path[SPRITE_COUNT] = {
     "rom:/O.sprite",
     "rom:/N.sprite",
     "rom:/start.sprite"
+};
+
+#define MESSAGE_COUNT 100
+
+static const char *messages[MESSAGE_COUNT] = {
+    "Siemon is near. Despair rises.",
+    "Fear his name. Siemon.",
+    "His shadow engulfs. Siemon.",
+    "Screen bleeds. He's near.",
+    "The end is nigh. Siemon.",
+    "His laugh echoes. It's him.",
+    "Maze trembles. Siemon lurks.",
+    "He's here. Siemon, the tormentor.",
+    "His presence darkens the maze.",
+    "His laughter, your death knell.",
+    "Hope shatters. Siemon's here.",
+    "His name freezes your blood.",
+    "Sanctuary crumbles. Siemon arrives.",
+    "Siemon looms. Game over.",
+    "His laughter chills your bones.",
+    "His shadow distorts reality.",
+    "He's closer. Run or perish.",
+    "Siemon feeds on your fear.",
+    "The dread amplifies. He's near.",
+    "Endgame is here. Siemon.",
+    "Siemon's presence: overwhelming.",
+    "Screen reddens. Fear him.",
+    "A creeping dread. Siemon.",
+    "Your pulse quickens. He's near.",
+    "Darkness deepens. Siemon approaches.",
+    "Your doom, spelled Siemon.",
+    "Terror seizes you. He's near.",
+    "Labyrinth shakes. Siemon is here.",
+    "There's no refuge from Siemon.",
+    "He's your nightmare. Siemon.",
+    "Path ends. Siemon looms.",
+    "His eyes, twin suns of terror.",
+    "His form: harbinger of doom.",
+    "Siemon's shadow devours hope.",
+    "He's the chill in the air.",
+    "Siemon. The end of sanctuary.",
+    "His approach: relentless.",
+    "Siemon: the predator draws near.",
+    "Cold touch in the dark: Siemon.",
+    "Terror lurks. Siemon is near.",
+    "Nowhere is safe. He's here.",
+    "His laugh resonates. Siemon.",
+    "Chase intensifies. Siemon's here.",
+    "Your terror, his delight.",
+    "Hope fades. Siemon's near.",
+    "No escape. Siemon has come.",
+    "Labyrinth trembles. He approaches.",
+    "His laugh haunts your path.",
+    "His name poisons the air.",
+    "He waits in the dark. Siemon.",
+    "Fear. Despair. Siemon.",
+    "Siemon's eyes pierce the darkness.",
+    "The path narrows. He's here.",
+    "He lurks in every shadow.",
+    "Your dread is his joy.",
+    "Fear swells. Siemon's near.",
+    "The echo of dread: Siemon.",
+    "The end approaches. Siemon.",
+    "His darkness is inescapable.",
+    "Your time runs out. Siemon.",
+    "His laughter, your despair.",
+    "Shadows dance. Siemon's near.",
+    "He's the phantom in the maze.",
+    "Every echo: Siemon.",
+    "Siemon's here. No way out.",
+    "His laughter, a death sentence.",
+    "He's the scream in the silence.",
+    "End is near. Siemon lurks.",
+    "His presence: suffocating.",
+    "Siemon's shadow: inescapable.",
+    "He's closer. Terror spikes.",
+    "His arrival, inevitable.",
+    "His name echoes. Siemon.",
+    "His face looms in the dark.",
+    "Maze whispers his name. Siemon.",
+    "No sanctuary. Only Siemon.",
+    "Siemon's near. Escape fades.",
+    "His laughter fills the maze.",
+    "No solace in the maze. Siemon.",
+    "He's the shiver down your spine.",
+    "Fear permeates. Siemon's near.",
+    "Monstrous form emerges. Siemon.",
+    "No place is safe. Siemon.",
+    "He's the predator. You're prey.",
+    "Every shadow whispers his name.",
+    "Your end is near. Siemon."
 };
 
 static GLuint textures[SPRITE_COUNT];
@@ -431,6 +524,10 @@ void drawCubeBetweenPoints(float x1, float y1, float z1, float x2, float y2, flo
 
 static const float distance_cutoff = 25.0f;
 
+static bool show_message = false;
+
+const char* message_str = "";
+
 void render_game()
 {
 
@@ -576,6 +673,14 @@ void render_game()
 
 
     gl_context_end();
+
+    if (show_message)
+    {
+        rdpq_font_begin(RGBA32(0xFF, 0xFF, 0xFF, 0xFF));
+        rdpq_font_position(30, 25);
+        rdpq_font_printf(fnt1, "%s", message_str);
+        rdpq_font_end();
+    }
 }
 
 float clamp(float val, float min, float max) {
@@ -600,10 +705,13 @@ void step_through_game()
         doingJump = true;
     }
 
+    float movement_speed = 0.3f;
+
     if (doingJump)
     {
         float jump_val = jump_height(jumpFrameCount++ / 60.0f);
         
+        movement_speed = 0.4f;
 
         if (jump_val < 0.0f)
         {
@@ -639,85 +747,86 @@ void step_through_game()
         camera_pitch = clamp(camera_pitch, -1.5f, 1.5f);
     }
 
-    static float movement_speed = 0.3f;
-
     if (pressed.c[0].C_up)
     {
         prev_camera_x = camera_x;
-        prev_camera_z = camera_z;
-
         camera_x += sin(camera_yaw) * movement_speed;
-        camera_z += cos(camera_yaw) * movement_speed;
-
         Collision_Info collision = check_for_maze_collision();
 
-        // Check if there's been a collision
         if (collision.hadCollision)
         {
-            debugf("Collision! At x: %f y: %f\n", collision.x, collision.y);
-
-            // If there's been a collision, move player back to the previous position
             camera_x = prev_camera_x;
+        }
+
+        prev_camera_z = camera_z;
+        camera_z += cos(camera_yaw) * movement_speed;
+        collision = check_for_maze_collision();
+
+        if (collision.hadCollision)
+        {
             camera_z = prev_camera_z;
         }
     }
+
     if (pressed.c[0].C_left)
     {
         prev_camera_x = camera_x;
-        prev_camera_z = camera_z;
-        
         camera_x += cos(camera_yaw) * movement_speed;
-        camera_z -= sin(camera_yaw) * movement_speed;
-
         Collision_Info collision = check_for_maze_collision();
 
-        // Check if there's been a collision
         if (collision.hadCollision)
         {
-            debugf("Collision! At x: %f y: %f\n", collision.x, collision.y);
-
-            // If there's been a collision, move player back to the previous position
             camera_x = prev_camera_x;
+        }
+
+        prev_camera_z = camera_z;
+        camera_z -= sin(camera_yaw) * movement_speed;
+        collision = check_for_maze_collision();
+
+        if (collision.hadCollision)
+        {
             camera_z = prev_camera_z;
         }
     }
+
     if (pressed.c[0].C_right)
     {
         prev_camera_x = camera_x;
-        prev_camera_z = camera_z;
-
         camera_x -= cos(camera_yaw) * movement_speed;
-        camera_z += sin(camera_yaw) * movement_speed;
-
         Collision_Info collision = check_for_maze_collision();
 
-        // Check if there's been a collision
         if (collision.hadCollision)
         {
-            debugf("Collision! At x: %f y: %f\n", collision.x, collision.y);
-
-            // If there's been a collision, move player back to the previous position
             camera_x = prev_camera_x;
+        }
+
+        prev_camera_z = camera_z;
+        camera_z += sin(camera_yaw) * movement_speed;
+        collision = check_for_maze_collision();
+
+        if (collision.hadCollision)
+        {
             camera_z = prev_camera_z;
         }
     }
+
     if (pressed.c[0].C_down)
     {
         prev_camera_x = camera_x;
-        prev_camera_z = camera_z;
-        
         camera_x -= sin(camera_yaw) * movement_speed;
-        camera_z -= cos(camera_yaw) * movement_speed;
-
         Collision_Info collision = check_for_maze_collision();
 
-        // Check if there's been a collision
         if (collision.hadCollision)
         {
-            debugf("Collision! At x: %f y: %f\n", collision.x, collision.y);
-
-            // If there's been a collision, move player back to the previous position
             camera_x = prev_camera_x;
+        }
+
+        prev_camera_z = camera_z;
+        camera_z -= cos(camera_yaw) * movement_speed;
+        collision = check_for_maze_collision();
+
+        if (collision.hadCollision)
+        {
             camera_z = prev_camera_z;
         }
     }
@@ -752,12 +861,14 @@ void step_through_game()
             {
                 wav64_play(&kill_sample, CHANNEL_VOICE);
             }
+            message_str = messages[rand() % MESSAGE_COUNT];
         }
-        
+        show_message = true;
     }
     else
     {
         hasDone = false;
+        show_message = false;
     }
 }
 
@@ -822,7 +933,7 @@ int main(void)
 
     debugf("Demo by jakes1403. Modified from the libdragon demo.\n");
 
-    rdpq_font_t *fnt1 = rdpq_font_load("rom:/Pacifico.font64");
+    fnt1 = rdpq_font_load("rom:/Judges.font64");
 
     sprite_t* tiles_sprite = sprite_load("rom:/tiles.sprite");
 
@@ -830,46 +941,10 @@ int main(void)
     surface_t tiles_surf = sprite_get_pixels(tiles_sprite);
 
     // Create a block for the background, so that we can replay it later.
-    rspq_block_begin();
+    //rspq_block_begin();
 
-    // Check if the sprite was compiled with a paletted format. Normally
-    // we should know this beforehand, but for this demo we pretend we don't
-    // know. This also shows how rdpq can transparently work in both modes.
-    bool tlut = false;
-    tex_format_t tiles_format = sprite_get_format(tiles_sprite);
-    if (tiles_format == FMT_CI4 || tiles_format == FMT_CI8) {
-        // If the sprite is paletted, turn on palette mode and load the
-        // palette in TMEM. We use the mode stack for demonstration,
-        // so that we show how a block can temporarily change the current
-        // render mode, and then restore it at the end.
-        rdpq_mode_push();
-        rdpq_mode_tlut(TLUT_RGBA16);
-        rdpq_tex_upload_tlut(sprite_get_palette(tiles_sprite), 0, 16);
-        tlut = true;
-    }
-    uint32_t tile_width = tiles_sprite->width / tiles_sprite->hslices;
-    uint32_t tile_height = tiles_sprite->height / tiles_sprite->vslices;
-
-    tile_width *= 2;
-    tile_height *= 2;
- 
-    for (uint32_t ty = 0; ty < display_get_height(); ty += tile_height)
-    {
-        for (uint32_t tx = 0; tx < display_get_width(); tx += tile_width)
-        {
-            // Load a random tile among the 4 available in the texture,
-            // and draw it as a rectangle.
-            // Notice that this code is agnostic to both the texture format
-            // and the render mode (standard vs copy), it will work either way.
-            int s = RANDN(2)*32, t = RANDN(2)*32;
-            rdpq_tex_upload_sub(TILE0, &tiles_surf, NULL, s, t, s+32, t+32);
-            rdpq_texture_rectangle(TILE0, tx, ty, tx+32, ty+32, s, t);
-        }
-    }
     
-    // Pop the mode stack if we pushed it before
-    if (tlut) rdpq_mode_pop();
-    rspq_block_t* tiles_block = rspq_block_end();
+    //rspq_block_t* tiles_block = rspq_block_end();
 
     while (1)
     {
@@ -898,9 +973,10 @@ int main(void)
 
             if (is_paused)
             {
-                graphics_set_color( 0xFFFFFFFF, 0x0 );
-
-                graphics_draw_text( disp, 20, 20, "Pause" );
+                rdpq_font_begin(RGBA32(0xFF, 0xFF, 0xFF, 0xFF));
+                rdpq_font_position(20, 20);
+                rdpq_font_print(fnt1, "Pause");
+                rdpq_font_end();
             }
         }
         
@@ -908,7 +984,45 @@ int main(void)
         {
             rdpq_set_mode_copy(false);
             // rdpq_set_mode_standard();
-            rspq_block_run(tiles_block);
+            //rspq_block_run(tiles_block);
+
+            // Check if the sprite was compiled with a paletted format. Normally
+            // we should know this beforehand, but for this demo we pretend we don't
+            // know. This also shows how rdpq can transparently work in both modes.
+            bool tlut = false;
+            tex_format_t tiles_format = sprite_get_format(tiles_sprite);
+            if (tiles_format == FMT_CI4 || tiles_format == FMT_CI8) {
+                // If the sprite is paletted, turn on palette mode and load the
+                // palette in TMEM. We use the mode stack for demonstration,
+                // so that we show how a block can temporarily change the current
+                // render mode, and then restore it at the end.
+                rdpq_mode_push();
+                rdpq_mode_tlut(TLUT_RGBA16);
+                rdpq_tex_upload_tlut(sprite_get_palette(tiles_sprite), 0, 16);
+                tlut = true;
+            }
+            uint32_t tile_width = tiles_sprite->width / tiles_sprite->hslices;
+            uint32_t tile_height = tiles_sprite->height / tiles_sprite->vslices;
+
+            tile_width *= 2;
+            tile_height *= 2;
+        
+            for (uint32_t ty = 0; ty < display_get_height(); ty += tile_height)
+            {
+                for (uint32_t tx = 0; tx < display_get_width(); tx += tile_width)
+                {
+                    // Load a random tile among the 4 available in the texture,
+                    // and draw it as a rectangle.
+                    // Notice that this code is agnostic to both the texture format
+                    // and the render mode (standard vs copy), it will work either way.
+                    int s = RANDN(2)*32, t = RANDN(2)*32;
+                    rdpq_tex_upload_sub(TILE0, &tiles_surf, NULL, s, t, s+32, t+32);
+                    rdpq_texture_rectangle(TILE0, tx, ty, tx+32, ty+32, s, t);
+                }
+            }
+            
+            // Pop the mode stack if we pushed it before
+            if (tlut) rdpq_mode_pop();
 
             rdpq_set_mode_standard();
             rdpq_mode_filter(FILTER_POINT);
@@ -925,12 +1039,6 @@ int main(void)
             rdpq_sprite_blit(sprites[30], 160, 200, &(rdpq_blitparms_t){
                 .scale_x = 1.0, .scale_y = 1.0, .theta = 0.2 * sin((global_time / 60.0f))
             });
-
-            rdpq_font_begin(RGBA32(0xED, 0xAE, 0x49, 0xFF));
-            rdpq_font_position(20, 50);
-            rdpq_font_scale(2.0, 2.0);
-            rdpq_font_print(fnt1, "Begin");
-            rdpq_font_end();
 
             if (down.c[0].start) {
                 is_main_menu = false;
