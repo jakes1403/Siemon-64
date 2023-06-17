@@ -1,0 +1,40 @@
+lipsync version 1
+feet.wav
+24
+75
+1
+	Voice 1
+	I wish I had those feet of yours
+	1
+		I wish I had those feet of yours
+		0
+		74
+		8
+			I 0 3 1
+				0 AI
+			wish 4 14 3
+				4 WQ
+				8 AI
+				11 etc
+			I 15 18 1
+				15 AI
+			had 19 29 3
+				19 etc
+				23 AI
+				26 etc
+			those 30 40 3
+				30 etc
+				34 O
+				37 etc
+			feet 41 52 3
+				41 FV
+				45 E
+				49 etc
+			of 53 59 2
+				53 AI
+				57 FV
+			yours 60 74 4
+				60 etc
+				64 U
+				68 etc
+				71 etc

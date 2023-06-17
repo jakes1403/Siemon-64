@@ -1,0 +1,33 @@
+lipsync version 1
+breath.wav
+24
+53
+1
+	Voice 1
+	let me smell your breath
+	1
+		let me smell your breath
+		0
+		52
+		5
+			let 0 9 3
+				0 L
+				3 E
+				7 etc
+			me 10 15 2
+				10 MBP
+				13 E
+			smell 17 28 4
+				17 etc
+				20 MBP
+				23 E
+				26 L
+			your 30 38 3
+				30 etc
+				33 O
+				36 etc
+			breath 40 52 4
+				40 MBP
+				43 etc
+				47 E
+				50 etc

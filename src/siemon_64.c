@@ -15,6 +15,8 @@
 #include "perlin_noise.h"
 #include "maze_gen.h"
 
+#include "papagayo_parse.h"
+
 
 // Set this to 1 to enable rdpq debug output.
 // The demo will only run for a single frame and stop.
@@ -26,7 +28,7 @@
 #define CHANNEL_VOICE    1
 #define CHANNEL_MUSIC   2
 
-static wav64_t sfx_monosample, kill_sample;
+static wav64_t sfx_monosample;
 
 static struct controller_data pressed;
 static struct controller_data down;
@@ -49,7 +51,15 @@ static rdpq_font_t *fnt1;
 
 static const GLfloat environment_color[] = { 0.1f, 0.03f, 0.2f, 1.f };
 
+
+
 #define SPRITE_COUNT 31
+#define MAP_SIZE 10
+
+typedef struct {
+    const char *name;
+    int index;
+} TextureMap;
 
 static const char *texture_path[SPRITE_COUNT] = {
     "rom:/wallTex.sprite",
@@ -85,7 +95,26 @@ static const char *texture_path[SPRITE_COUNT] = {
     "rom:/start.sprite"
 };
 
-#define MESSAGE_COUNT 100
+TextureMap texture_map[MAP_SIZE]; // map array
+
+void build_texture_map() {
+    const char *names[MAP_SIZE] = {"AI", "E", "etc", "FV", "L", "MBP", "O", "rest", "U", "WQ"};
+    
+    for(int i = 0; i < SPRITE_COUNT; ++i) {
+        for(int j = 0; j < MAP_SIZE; ++j) {
+            // find the last '/' in the string and get the substring after it
+            const char *name = strrchr(texture_path[i], '/') + 1;
+            // check if the name starts with the given name and ends with "_1.sprite"
+            if(strncmp(name, names[j], strlen(names[j])) == 0 && strcmp(name + strlen(names[j]), "_1.sprite") == 0) {
+                texture_map[j].name = names[j];
+                texture_map[j].index = i;
+                break;
+            }
+        }
+    }
+}
+
+#define MESSAGE_COUNT 303
 
 static const char *messages[MESSAGE_COUNT] = {
     "Siemon is near. Despair rises.",
@@ -173,8 +202,251 @@ static const char *messages[MESSAGE_COUNT] = {
     "No place is safe. Siemon.",
     "He's the predator. You're prey.",
     "Every shadow whispers his name.",
-    "Your end is near. Siemon."
+    "Your end is near. Siemon.",
+    "Siemon. A nightmare in red.",
+    "The maze tightens. Siemon.",
+    "Echoes of dread. Siemon lurks.",
+    "His presence distorts the air.",
+    "No refuge. Siemon is here.",
+    "He's the ghost in the maze.",
+    "Sanctuary vanishes. Siemon looms.",
+    "The maze breathes his name.",
+    "His eyes pierce your soul.",
+    "Despair seeps in. Siemon nears.",
+    "He's the devil in the maze.",
+    "Screen darkens. He's close.",
+    "Escape is futile. Siemon.",
+    "He's the shadow in your mind.",
+    "Terror lurks. Siemon looms.",
+    "His laughter deafens you.",
+    "Siemon. The end is here.",
+    "His laugh chills your soul.",
+    "Darkness intensifies. Siemon nears.",
+    "He's the chill down your spine.",
+    "Maze whispers. He's near.",
+    "He lurks in the shadows. Siemon.",
+    "He's your nemesis. Siemon.",
+    "Siemon's laughter, a death knell.",
+    "Darkness gathers. Siemon approaches.",
+    "His shadow covers all. Siemon.",
+    "He's your demise. Siemon.",
+    "His laughter shatters your hope.",
+    "He's the echo in the maze. Siemon.",
+    "No hiding. He's here. Siemon.",
+    "His presence dominates. Siemon.",
+    "No sanctuary. Siemon's near.",
+    "His laughter chokes the air.",
+    "Siemon. He's here. Nowhere to hide.",
+    "His shadow engulfs all. Siemon.",
+    "No escape. He's here. Siemon.",
+    "He's the dread in the labyrinth. Siemon.",
+    "Siemon. His laughter haunts the maze.",
+    "His face haunts your path.",
+    "His name chills the air. Siemon.",
+    "The red tints your terror. Siemon.",
+    "Siemon. Your path ends here.",
+    "He's the darkness in the labyrinth.",
+    "His presence, a cold touch. Siemon.",
+    "Your doom awaits. Siemon.",
+    "He's the whisper in the wind. Siemon.",
+    "Siemon. The name freezes your heart.",
+    "The darkness gathers. Siemon is near.",
+    "His name haunts the labyrinth. Siemon.",
+    "He's the phantom that chases. Siemon.",
+    "Siemon. His eyes pierce the shadows.",
+    "The labyrinth tightens. Siemon looms.",
+    "Siemon. He's the terror in the dark.",
+    "No safety. Only him. Siemon.",
+    "He's the shadow in your nightmares.",
+    "The labyrinth shivers. Siemon approaches.",
+    "Siemon. His name echoes in your fear.",
+    "Your terror, his delight. Siemon.",
+    "He's the cold wind in the labyrinth.",
+    "Siemon's shadow distorts reality.",
+    "He's the beast in the labyrinth. Siemon.",
+    "No way out. Siemon approaches.",
+    "His laugh echoes in your mind.",
+    "The maze turns red. He's here.",
+    "His eyes, twin stars of terror.",
+    "He's the monster in the maze. Siemon.",
+    "The air freezes. Siemon is near.",
+    "His name, a curse. Siemon.",
+    "He's the chill in the air. Siemon.",
+    "Dread fills the air. Siemon.",
+    "Siemon. He's the echo in the labyrinth.",
+    "His laugh, a haunting melody.",
+    "No place to hide. Siemon is here.",
+    "Your demise is near. Siemon.",
+    "His name, a chilling echo. Siemon.",
+    "He's the darkness in your path. Siemon.",
+    "No solace. Only Siemon.",
+    "He's the threat in the labyrinth.",
+    "Fear his name. Siemon.",
+    "He's the terror that lurks. Siemon.",
+    "Your doom is spelled: Siemon.",
+    "The labyrinth shudders. Siemon is near.",
+    "Your time is running out. Siemon.",
+    "No sanctuary in the maze. Siemon.",
+    "His presence, a chilling wind.",
+    "Siemon. He's the ghost in the maze.",
+    "His shadow, a dreadful sight.",
+    "Despair mounts. Siemon nears.",
+    "He's the echo in the labyrinth.",
+    "No rest. Siemon is near.",
+    "His laugh, a harrowing sound.",
+    "His face haunts the labyrinth. Siemon.",
+    "Siemon. The end is imminent.",
+    "His laugh, a cold chill. Siemon.",
+    "He's the hunter in the maze. Siemon.",
+    "The labyrinth turns cold. Siemon.",
+    "His name is the echo. Siemon.",
+    "No respite in the maze. Siemon.",
+    "His eyes pierce the darkness. Siemon.",
+    "The dread intensifies. Siemon.",
+    "His name, an omen. Siemon.",
+    "He's the stalker in the maze. Siemon.",
+    "Your fear is his delight. Siemon.",
+    "He's the face in the shadows. Siemon.",
+    "No refuge from Siemon.",
+    "His shadow, a looming threat.",
+    "No escape. Siemon lurks.",
+    "His name, a cold shiver. Siemon.",
+    "He's the beast in the shadows. Siemon.",
+    "No respite. Siemon is near.",
+    "His laugh, your despair. Siemon.",
+    "Siemon. His presence chills the air.",
+    "Your fear feeds him. Siemon.",
+    "He's the terror in the shadows. Siemon.",
+    "The maze tightens. Siemon is near.",
+    "His laughter, a chilling sound. Siemon.",
+    "He's the monster in your nightmares. Siemon.",
+    "No escape from Siemon.",
+    "His presence, a daunting reality. Siemon.",
+    "He's the echo in your nightmares. Siemon.",
+    "No sanctuary from Siemon.",
+    "His name chills your heart. Siemon.",
+    "He's the darkness in the maze. Siemon.",
+    "No escape from his grasp. Siemon.",
+    "His shadow engulfs the labyrinth. Siemon.",
+    "He's the haunting laugh. Siemon.",
+    "No respite in the labyrinth. Siemon.",
+    "His eyes, a daunting sight. Siemon.",
+    "He's the predator in the maze. Siemon.",
+    "No safety from Siemon.",
+    "His presence, a creeping dread. Siemon.",
+    "He's the shadow in your fear. Siemon.",
+    "No escape from the labyrinth. Siemon.",
+    "His name, a dreadful echo. Siemon.",
+    "He's the terror in your path. Siemon.",
+    "No safety. Siemon is here.",
+    "His shadow, a chilling sight. Siemon.",
+    "He's the menace in the maze. Siemon.",
+    "No refuge. Siemon lurks.",
+    "His laughter, a dreadful sound. Siemon.",
+    "He's the ghost in your nightmares. Siemon.",
+    "No sanctuary. Siemon lurks.",
+    "His presence, a shivering cold. Siemon.",
+    "He's the beast in your fear. Siemon.",
+    "No safety in the labyrinth. Siemon.",
+    "His name, a haunting whisper. Siemon.",
+    "He's the terror in the labyrinth. Siemon.",
+    "No refuge from his shadow. Siemon.",
+    "His laughter, a chilling echo. Siemon.",
+    "He's the monster in the shadows. Siemon.",
+    "No sanctuary in the shadows. Siemon.",
+    "His shadow, a daunting sight. Siemon.",
+    "He's the hunter in your nightmares. Siemon.",
+    "No respite. Siemon lurks.",
+    "His name, a daunting echo. Siemon.",
+    "He's the dread in your path. Siemon.",
+    "No safety from his grasp. Siemon.",
+    "His laughter, a haunting sound. Siemon.",
+    "He's the phantom in the maze. Siemon.",
+    "No respite from Siemon.",
+    "His presence, a dreadful chill. Siemon.",
+    "He's the beast in your nightmares. Siemon.",
+    "No safety in the shadows. Siemon.",
+    "His name, a chilling whisper. Siemon.",
+    "He's the terror in the maze. Siemon.",
+    "No refuge from his eyes. Siemon.",
+    "His laughter, a dreadful echo. Siemon.",
+    "He's the monster in your path. Siemon.",
+    "No sanctuary from his grasp. Siemon.",
+    "His shadow, a shivering cold. Siemon.",
+    "He's the hunter in your fear. Siemon.",
+    "No safety. Siemon lurks.",
+    "His name, a haunting echo. Siemon.",
+    "He's the dread in your nightmares. Siemon.",
+    "No escape from his eyes. Siemon.",
+    "His laughter, a shivering cold. Siemon.",
+    "He's the phantom in your nightmares. Siemon.",
+    "No escape from Siemon.",
+    "His presence, a haunting chill. Siemon.",
+    "He's the beast in the labyrinth. Siemon.",
+    "No safety in the maze. Siemon.",
+    "His name, a dreadful whisper. Siemon.",
+    "He's the terror in your nightmares. Siemon.",
+    "No refuge from his laughter. Siemon.",
+    "His shadow, a haunting chill. Siemon.",
+    "He's the hunter in the labyrinth. Siemon.",
+    "No sanctuary. Siemon lurks.",
+    "His laughter, a daunting echo. Siemon.",
+    "He's the phantom in your fear. Siemon.",
+    "No respite from his grasp. Siemon.",
+    "His presence, a dreadful echo. Siemon.",
+    "He's the beast in your path. Siemon.",
+    "No sanctuary in the maze. Siemon.",
+    "His name, a shivering cold. Siemon.",
+    "He's the terror in your fear. Siemon.",
+    "No refuge from his shadow. Siemon.",
+    "His shadow, a daunting echo. Siemon.",
+    "He's the hunter in your path. Siemon.",
+    "No safety. Siemon is here.",
+    "His laughter, a shivering echo. Siemon.",
+    "He's the phantom in the shadows. Siemon.",
+    "No respite from his laughter. Siemon.",
+    "His presence, a haunting echo. Siemon.",
+    "He's the beast in your nightmares. Siemon.",
+    "No safety in the labyrinth. Siemon.",
+    "His name, a dreadful chill. Siemon.",
+    "He's the terror in the shadows. Siemon.",
+    "No refuge from his eyes. Siemon.",
+    "His shadow, a haunting echo. Siemon.",
+    "He's the hunter in the shadows. Siemon.",
+    "No sanctuary. Siemon lurks.",
+    "His laughter, a daunting chill. Siemon.",
+    "He's the phantom in your path. Siemon.",
+    "No respite from his shadow. Siemon.",
+    "His presence, a dreadful chill. Siemon.",
+    "He's the beast in the shadows. Siemon.",
+    "No sanctuary in the labyrinth. Siemon."
 };
+
+#define AUDIO_MESSAGE_COUNT 7
+
+static const char *audio_messages[AUDIO_MESSAGE_COUNT] = {
+    "rom:/simon_kills.wav64",
+    "rom:/breath.wav64",
+    "rom:/company.wav64",
+    "rom:/console.wav64",
+    "rom:/fear.wav64",
+    "rom:/feet.wav64",
+    "rom:/panic.wav64"
+};
+
+static const char *audio_lip_sync[AUDIO_MESSAGE_COUNT] = {
+    "rom:/simon_kills.pgo",
+    "rom:/breath.pgo",
+    "rom:/company.pgo",
+    "rom:/console.pgo",
+    "rom:/fear.pgo",
+    "rom:/feet.pgo",
+    "rom:/panic.pgo"
+};
+
+static Word* audio_words[AUDIO_MESSAGE_COUNT];
+
+static wav64_t audio_clips[AUDIO_MESSAGE_COUNT];
 
 static GLuint textures[SPRITE_COUNT];
 
@@ -283,10 +555,27 @@ void setup_renderer()
     }
 }
 
+int simon_frame = 0;
+int simon_frame_time = 0;
+
+int audio_clip_index = 0;
+
+void play_audio_clip(const char* name)
+{
+    for (int i = 0; i < AUDIO_MESSAGE_COUNT; i++)
+    {
+        if (!strcmp(name, audio_messages[i]))
+        {
+            wav64_play(&audio_clips[i], CHANNEL_VOICE);
+            simon_frame_time = 0;
+            audio_clip_index = i;
+        }
+    }
+}
 
 void draw_quad()
 {
-    int animation_frame = 4 + ((game_time / 10) % 10) * 2;
+    int animation_frame = simon_frame;
     // Original plane
     // Top left with textures[4]
     glBindTexture(GL_TEXTURE_2D, textures[animation_frame]);
@@ -447,14 +736,14 @@ void renderMaze(int xspecial, int yspecial){
     int width=(xsize-1)*2-1;
     int height=(ysize-1)*2-1;
 
-    int adjustedCameraX = (int)(camera_x / cube_size / 2);
-    int adjustedCameraY = (int)(camera_y / cube_size / 2);
+    int adjustedCameraX = (int)(camera_x / (cube_size * 2));
+    int adjustedCameraY = (int)(camera_z / (cube_size * 2));
 
-    int lowerBoundX = max(0, adjustedCameraX - (int)MAX_LENGTH);
-    int upperBoundX = min(width - 1, adjustedCameraX + (int)MAX_LENGTH);
+    int lowerBoundX = max(0, adjustedCameraX - (MAX_LENGTH / cube_size));
+    int upperBoundX = min(width - 1, adjustedCameraX + (MAX_LENGTH / cube_size));
 
-    int lowerBoundY = max(0, adjustedCameraY - (int)MAX_LENGTH);
-    int upperBoundY = min(height - 1, adjustedCameraY + (int)MAX_LENGTH);
+    int lowerBoundY = max(0, adjustedCameraY - (MAX_LENGTH / cube_size));
+    int upperBoundY = min(height - 1, adjustedCameraY + (MAX_LENGTH / cube_size));
     number_segments = 0;
 
     //Actual writing of data begins here:
@@ -501,20 +790,67 @@ void drawCubeBetweenPoints(float x1, float y1, float z1, float x2, float y2, flo
     float cz = (z1 + z2) / 2;
 
     float d = sqrt(dx * dx + dy * dy + dz * dz); // Distance between points
-    float ax = 57.2957795*acos( dz/d ); // The angle in the x-y plane 
-    float ay = 57.2957795*atan2( dy, dx ); // The angle in the x-z plane 
+
+    // Normalize the direction vector
+    float nx = dx / d;
+    float ny = dy / d;
+    float nz = dz / d;
+
+    // Initial direction vector (base vector), for example, along z-axis
+    float bx = 0.0f;
+    float by = 0.0f;
+    float bz = 1.0f;
+
+    // Compute the cross product (b x n) and the dot product (b . n)
+    float crossX = by * nz - bz * ny;
+    float crossY = bz * nx - bx * nz;
+    float crossZ = bx * ny - by * nx;
+    float dot = bx * nx + by * ny + bz * nz;
+
+    // Normalize the cross product vector
+    float crossD = sqrt(crossX * crossX + crossY * crossY + crossZ * crossZ);
+    crossX /= crossD;
+    crossY /= crossD;
+    crossZ /= crossD;
+
+    // Calculate the rotation matrix using Rodrigues' rotation formula
+    float R[16];
+    float cosTheta = dot;
+    float sinTheta = sqrt(1 - cosTheta * cosTheta);
+    float oneMinusCosTheta = 1 - cosTheta;
+
+    R[0] = cosTheta + crossX * crossX * oneMinusCosTheta;
+    R[1] = crossX * crossY * oneMinusCosTheta - crossZ * sinTheta;
+    R[2] = crossX * crossZ * oneMinusCosTheta + crossY * sinTheta;
+    R[3] = 0;
+
+    R[4] = crossY * crossX * oneMinusCosTheta + crossZ * sinTheta;
+    R[5] = cosTheta + crossY * crossY * oneMinusCosTheta;
+    R[6] = crossY * crossZ * oneMinusCosTheta - crossX * sinTheta;
+    R[7] = 0;
+
+    R[8] = crossZ * crossX * oneMinusCosTheta - crossY * sinTheta;
+    R[9] = crossZ * crossY * oneMinusCosTheta + crossX * sinTheta;
+    R[10] = cosTheta + crossZ * crossZ * oneMinusCosTheta;
+    R[11] = 0;
+
+    R[12] = 0;
+    R[13] = 0;
+    R[14] = 0;
+    R[15] = 1;
+
+    glBindTexture(GL_TEXTURE_2D, textures[0]);
 
     glPushMatrix();
 
     // Translate the cube to center
     glTranslatef(cx, cy, cz);
 
-    // Rotate the cube
-    glRotatef(ax, -1.0, 0.0, 0.0);
-    glRotatef(ay, 0.0, 1.0, 0.0);
+    // Apply the rotation matrix
+    glMultMatrixf(R);
 
     // Scale the cube
-    glScalef(2, d, 2); // Assuming you want to keep the width and depth as 2
+    glScalef(0.5, d, 0.5);
 
     // Draw the cube
     draw_cube();
@@ -523,19 +859,14 @@ void drawCubeBetweenPoints(float x1, float y1, float z1, float x2, float y2, flo
 }
 
 static const float distance_cutoff = 25.0f;
+#define DEATH_DISTANCE 12.0f
 
 static bool show_message = false;
 
 const char* message_str = "";
 
-void render_game()
+void tintScreenRed(float red_value)
 {
-
-    gl_context_begin();
-
-    glClearColor(environment_color[0], environment_color[1], environment_color[2], environment_color[3]);
-    glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-
     glMatrixMode(GL_PROJECTION);
     glLoadIdentity();
     glOrtho(0.0, display_get_width(), display_get_height(), 0.0, -1.0, 1.0);
@@ -544,15 +875,6 @@ void render_game()
 
     glEnable(GL_BLEND);
     glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
-    
-    float distance_from_simon = distance3D(simon_x, simon_y, simon_z, camera_x, camera_y, camera_z);
-
-    float red_value = 1.0f;
-
-    if (distance_from_simon < distance_cutoff)
-    {
-        red_value = distance_from_simon / distance_cutoff;
-    }
 
     // The color you want to tint with (RGBA)
     float red = 1.0f;   // range: 0-1
@@ -569,6 +891,103 @@ void render_game()
     glEnd();
 
     glDisable(GL_BLEND);
+}
+
+void tintScreenRGB(float red_value, float green_value, float blue_value)
+{
+    glMatrixMode(GL_PROJECTION);
+    glLoadIdentity();
+    glOrtho(0.0, display_get_width(), display_get_height(), 0.0, -1.0, 1.0);
+    glMatrixMode(GL_MODELVIEW);
+    glLoadIdentity();
+
+    glEnable(GL_BLEND);
+    glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+
+    // The color you want to tint with (RGBA)
+    float red = red_value;   // range: 0-1
+    float green = green_value; // range: 0-1
+    float blue = blue_value;  // range: 0-1
+    float alpha = 1.0f; // range: 0-1, 0 means fully transparent, 1 means fully opaque
+
+    glColor4f(red, green, blue, alpha);
+    glBegin(GL_QUADS);
+    glVertex2i(0, 0);
+    glVertex2i(display_get_width(), 0);
+    glVertex2i(display_get_width(), display_get_height());
+    glVertex2i(0, display_get_height());
+    glEnd();
+
+    glDisable(GL_BLEND);
+}
+
+int getFrameNumberByVoiceLineTime(Word* head, int time)
+{
+    Word* tempWord = head;
+    bool exit = false;
+    char mouth_type[] = "    ";
+    while(tempWord != NULL && !exit) {
+        //debugf("Word: %s\n", tempWord->word);
+        Phoneme* tempPhoneme = tempWord->phoneme;
+        while(tempPhoneme != NULL) {
+            if (tempPhoneme->time >= time)
+            {
+                for (int i = 0; i < 4; i++)
+                {
+                    mouth_type[i] = tempPhoneme->mouth_type[i];
+                }
+                //debugf("\tTime: %d, Mouth Type: %s\n", tempPhoneme->time, tempPhoneme->mouth_type);
+                exit = true;
+                break;
+            }
+            //debugf("\tTime: %d, Mouth Type: %s\n", tempPhoneme->time, tempPhoneme->mouth_type);
+            tempPhoneme = tempPhoneme->next;
+        }
+        tempWord = tempWord->next;
+    }
+
+    int retVal = 14;
+
+    // Print out the mapping
+    for(int i = 0; i < MAP_SIZE; ++i) {
+        if (!strcmp(mouth_type, texture_map[i].name))
+        {
+            retVal = texture_map[i].index;
+            //debugf("Name: %s, Index: %d, Time: %i\n", texture_map[i].name, texture_map[i].index, time);
+        }
+    }
+
+    return retVal;
+}
+
+void render_game()
+{
+
+    gl_context_begin();
+
+    glClearColor(environment_color[0], environment_color[1], environment_color[2], environment_color[3]);
+    glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+
+    float distance_from_simon = distance3D(simon_x, simon_y, simon_z, camera_x, camera_y, camera_z);
+
+    float red_value = 1.0f;
+
+    if (distance_from_simon < distance_cutoff)
+    {
+        red_value = distance_from_simon / distance_cutoff;
+    }
+
+    tintScreenRed(red_value);
+
+    if (distance_from_simon < DEATH_DISTANCE)
+    {
+        float tint_r = 0.5 + 0.5 * cos(game_time / 2.0f + 0);
+        float tint_g = 0.5 + 0.5 * cos(game_time / 2.0f + 2);
+        float tint_b = 0.5 + 0.5 * cos(game_time / 2.0f + 4);
+
+        tintScreenRGB(tint_r, tint_g, tint_b);
+        
+    }
 
     float aspect_ratio = (float)display_get_width() / (float)display_get_height();
     float near_plane = 1.0f;
@@ -641,7 +1060,9 @@ void render_game()
     glEnable(GL_BLEND);
     glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
     //glDisable(GL_LIGHTING);
-    rdpq_debug_log_msg("Decal");
+    rdpq_debug_log_msg("Simon");
+
+    simon_frame = getFrameNumberByVoiceLineTime(audio_words[audio_clip_index], simon_frame_time++ / 2);
 
     draw_quad();
     //glDepthMask(GL_TRUE);
@@ -669,8 +1090,7 @@ void render_game()
 
     //glBindTexture(GL_TEXTURE_2D, textures[2]);
 
-    //drawCubeBetweenPoints(simon_x, simon_y, simon_z, camera_x, camera_y - 1.0, camera_z);
-
+    //drawCubeBetweenPoints(simon_x, simon_y, simon_z, camera_x, camera_y - 1.5, camera_z);
 
     gl_context_end();
 
@@ -692,6 +1112,25 @@ static bool hasDone = false;
 static float prev_camera_x;
 static float prev_camera_z;
 
+static const char* game_state;
+
+static int transition_count = 0;
+
+
+void setup_game()
+{
+    game_time = 3283;
+    camera_x = cube_size * 2, camera_y = floor_y, camera_z = cube_size * 2;
+
+    camera_pitch = 0.0f, camera_yaw = 0.0f;
+
+    simon_x = 0.0f, simon_y = 1.5f, simon_z = 60.0f;
+
+    srand(global_time); //seed random number generator with system time
+	initialize_maze_gen();      //initialize the maze
+	generate_maze();        //generate the maze
+}
+
 void step_through_game()
 {
     static int jumpFrameCount = 0;
@@ -699,6 +1138,17 @@ void step_through_game()
     static bool doingJump = false;
 
     game_time++;
+
+    static uint32_t random_message_time = 500;
+    static uint32_t last_time = 0;
+
+    if (game_time % random_message_time == 0 && game_time - last_time > 1000)
+    {
+        last_time = game_time;
+        random_message_time = 500 + (rand() % 1000);
+        const int start_at = 1;
+        play_audio_clip(audio_messages[start_at + (rand() % (AUDIO_MESSAGE_COUNT - start_at))]);
+    }
 
     if (down.c[0].A && !doingJump) {
         jumpFrameCount = 0;
@@ -852,14 +1302,18 @@ void step_through_game()
     float rotation_difference = fmodf((target_rotation - current_rotation + 180.0f), 360.0f) - 180.0f;
     current_rotation += rotation_difference * 0.05f * perlin2d(simon_x, simon_y, 0.1, 4);
 
-    if (distance3D(simon_x, simon_y, simon_z, camera_x, camera_y, camera_z) < distance_cutoff)
+    float distance_from_simon = distance3D(simon_x, simon_y, simon_z, camera_x, camera_y, camera_z);
+
+    if (distance_from_simon < distance_cutoff)
     {
         if (!hasDone)
         {
             hasDone = true;
             if (rand() % 100 < 30)
             {
-                wav64_play(&kill_sample, CHANNEL_VOICE);
+                //wav64_play(&kill_sample, CHANNEL_VOICE);
+                last_time = game_time;
+                play_audio_clip("rom:/simon_kills.wav64");
             }
             message_str = messages[rand() % MESSAGE_COUNT];
         }
@@ -870,20 +1324,29 @@ void step_through_game()
         hasDone = false;
         show_message = false;
     }
-}
+    
+    bool inDeathRange = distance_from_simon < DEATH_DISTANCE;
 
-void setup_game()
-{
-    game_time = 3283;
-    camera_x = cube_size * 2, camera_y = floor_y, camera_z = cube_size * 2;
+    static bool oldDeathRange = false;
 
-    camera_pitch = 0.0f, camera_yaw = 0.0f;
+    static int deathFrameCount = 0;
 
-    simon_x = 0.0f, simon_y = 1.5f, simon_z = 60.0f;
-
-    srand(global_time); //seed random number generator with system time
-	initialize_maze_gen();      //initialize the maze
-	generate_maze();        //generate the maze
+    if (inDeathRange != oldDeathRange)
+    {
+        oldDeathRange = inDeathRange;
+        deathFrameCount = 0;
+    }
+    if (inDeathRange)
+    {
+        deathFrameCount++;
+    }
+    if (deathFrameCount > 30)
+    {
+        // Death
+        game_state = "transition";
+        transition_count = 0;
+        //setup_game();
+    }
 }
 
 // RANDN(n): generate a random number from 0 to n-1
@@ -892,7 +1355,6 @@ void setup_game()
 		(rand()%(n)) : \
 		(uint32_t)(((uint64_t)rand() * (n)) >> 32); \
 })
-
 
 int main(void)
 {
@@ -909,8 +1371,6 @@ int main(void)
 
     wav64_open(&sfx_monosample, "rom:/dungeon_music.wav64");
 	wav64_set_loop(&sfx_monosample, true);
-
-    wav64_open(&kill_sample, "rom:/simon_kills.wav64");
 
     rdpq_init();
     gl_init();
@@ -929,22 +1389,33 @@ int main(void)
 
     //setup_game();
 
-    bool is_main_menu = true;
-
-    debugf("Demo by jakes1403. Modified from the libdragon demo.\n");
+    //debugf("Demo by jakes1403. Modified from the libdragon demo.\n");
 
     fnt1 = rdpq_font_load("rom:/Judges.font64");
 
     sprite_t* tiles_sprite = sprite_load("rom:/tiles.sprite");
 
-
     surface_t tiles_surf = sprite_get_pixels(tiles_sprite);
+
+    for (int i = 0; i < AUDIO_MESSAGE_COUNT; i++)
+    {
+        wav64_open(&audio_clips[i], audio_messages[i]);
+
+        audio_words[i] = parsePapagayoFile(audio_lip_sync[i]);
+    }
+
+    
+    //printParsedData(head);
+
+    game_state = "warning";
 
     // Create a block for the background, so that we can replay it later.
     //rspq_block_begin();
 
     
     //rspq_block_t* tiles_block = rspq_block_end();
+
+    build_texture_map();
 
     while (1)
     {
@@ -956,7 +1427,80 @@ int main(void)
         pressed = get_keys_pressed();
         down = get_keys_down();
 
-        if (!is_main_menu)
+        if (!strcmp(game_state, "warning"))
+        {
+
+            rdpq_set_mode_fill(RGBA32(0x30,0x63,0x8E,0xFF));
+            rdpq_fill_rectangle(0, 0, display_get_width(), display_get_height());
+
+            static bool show = true;
+            
+            if (global_time % 30 == 0)
+            {
+                show = !show;
+            }
+
+            if (show)
+            {
+                rdpq_font_begin(RGBA32(0xFF, 0x00, 0x00, 0xFF));
+                rdpq_font_position(60, 50);
+                rdpq_font_print(fnt1, "PHOTOSENSITIVITY WARNING");
+                rdpq_font_end();
+            }
+
+            rdpq_font_begin(RGBA32(0xFF, 0xFF, 0xFF, 0xFF));
+            rdpq_font_position(20, 70);
+            rdpq_font_print(fnt1, "A small percentage of people may");
+            rdpq_font_end();
+
+            rdpq_font_begin(RGBA32(0xFF, 0xFF, 0xFF, 0xFF));
+            rdpq_font_position(20, 80);
+            rdpq_font_print(fnt1, "experience seizures when exposed");
+            rdpq_font_end();
+
+            rdpq_font_begin(RGBA32(0xFF, 0xFF, 0xFF, 0xFF));
+            rdpq_font_position(20, 90);
+            rdpq_font_print(fnt1, "to certain lights, patterns, or images,");
+            rdpq_font_end();
+
+            rdpq_font_begin(RGBA32(0xFF, 0xFF, 0xFF, 0xFF));
+            rdpq_font_position(20, 100);
+            rdpq_font_print(fnt1, "even with no history of epilepsy or seizures.");
+            rdpq_font_end();
+
+            rdpq_font_begin(RGBA32(0xFF, 0xFF, 0xFF, 0xFF));
+            rdpq_font_position(90, 180);
+            rdpq_font_print(fnt1, "Press A to continue.");
+            rdpq_font_end();
+
+            if (down.c[0].A) {
+                game_state = "menu";
+            }
+        }
+
+        if (!strcmp(game_state, "transition"))
+        {
+            transition_count++;
+            float tint_r = 0.5 + 0.5 * cos(global_time / 2.0f + 0);
+            float tint_g = 0.5 + 0.5 * cos(global_time / 2.0f + 2);
+            float tint_b = 0.5 + 0.5 * cos(global_time / 2.0f + 4);
+
+            rdpq_set_mode_fill(RGBA32(tint_r * 255,tint_g * 255,tint_b * 255,0xFF));
+            rdpq_fill_rectangle(0, 0, display_get_width(), display_get_height());
+
+            rdpq_font_begin(RGBA32(0xFF, 0x00, 0x00, 0xFF));
+            rdpq_font_position(40, 100);
+            rdpq_font_print(fnt1, "It is advised to turn off your system.");
+            rdpq_font_end();
+
+            if (transition_count > 100)
+            {
+                game_state = "play";
+                setup_game();
+            }
+        }
+
+        if (!strcmp(game_state, "play"))
         {
             if (down.c[0].start) {
                 is_paused = !is_paused;
@@ -980,7 +1524,7 @@ int main(void)
             }
         }
         
-        if (is_main_menu)
+        if (!strcmp(game_state, "menu"))
         {
             rdpq_set_mode_copy(false);
             // rdpq_set_mode_standard();
@@ -1041,8 +1585,8 @@ int main(void)
             });
 
             if (down.c[0].start) {
-                is_main_menu = false;
-                setup_game();
+                game_state = "transition";
+                transition_count = 0;
             }
         }
 

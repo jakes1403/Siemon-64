@@ -8,9 +8,12 @@ assets_ttf = $(wildcard assets/*.ttf)
 
 assets_wav = $(wildcard assets/*.wav)
 
+assets_pgo = $(wildcard assets/*.pgo)
+
 assets_conv = $(addprefix filesystem/,$(notdir $(assets_png:%.png=%.sprite))) \
 			  $(addprefix filesystem/,$(notdir $(assets_ttf:%.ttf=%.font64))) \
-			  $(addprefix filesystem/,$(notdir $(assets_wav:%.wav=%.wav64)))
+			  $(addprefix filesystem/,$(notdir $(assets_wav:%.wav=%.wav64))) \
+			  $(addprefix filesystem/,$(notdir $(assets_pgo:%.pgo=%.pgo)))
 
 MKSPRITE_FLAGS ?=
 
@@ -30,6 +33,11 @@ filesystem/%.wav64: assets/%.wav
 	@mkdir -p $(dir $@)
 	@echo "    [AUDIO] $@"
 	@$(N64_AUDIOCONV) -o filesystem $<
+
+filesystem/%.pgo: assets/%.pgo
+	@mkdir -p $(dir $@)
+	@echo "    [COPY] $@"
+	@cp $< $@
 
 $(BUILD_DIR)/gldemo.dfs: $(assets_conv)
 $(BUILD_DIR)/gldemo.elf: $(src:%.c=$(BUILD_DIR)/%.o)

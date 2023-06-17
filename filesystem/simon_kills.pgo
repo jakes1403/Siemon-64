@@ -1,0 +1,31 @@
+lipsync version 1
+C:\SoftwareProjects\N64\assets\simon_kills.wav
+24
+106
+1
+	Voice 1
+	Make peace with your god
+	1
+		Make peace with your god
+		0
+		105
+		5
+			Make 0 16 2
+				0 E
+				9 etc
+			peace 18 37 3
+				18 MBP
+				25 E
+				31 etc
+			with 41 58 3
+				41 WQ
+				47 AI
+				53 etc
+			your 61 72 3
+				61 etc
+				65 O
+				69 etc
+			god 73 105 3
+				73 etc
+				84 AI
+				95 etc

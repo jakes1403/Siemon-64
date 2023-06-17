@@ -1,0 +1,37 @@
+lipsync version 1
+console.wav
+24
+61
+1
+	Voice 1
+	You should turn off your console
+	1
+		You should turn off your console
+		0
+		60
+		6
+			You 0 5 2
+				0 etc
+				3 U
+			should 6 15 3
+				6 etc
+				9 U
+				13 etc
+			turn 16 24 3
+				16 etc
+				19 E
+				22 L
+			off 26 31 2
+				26 O
+				29 FV
+			your 32 40 3
+				32 etc
+				35 O
+				38 etc
+			console 42 60 6
+				42 etc
+				45 AI
+				48 L
+				51 etc
+				55 O
+				58 L

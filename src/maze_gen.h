@@ -16,8 +16,8 @@
 //#define movie   //this option spams bitmaps to illustrate each step of generation.
 
 long numin=1;     //Number of cells in the maze.
-#define xsize 100
-#define ysize 100
+#define xsize 50
+#define ysize 50
 
 void initialize_maze_gen();
 void generate_maze();

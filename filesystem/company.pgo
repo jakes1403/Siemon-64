@@ -1,0 +1,44 @@
+lipsync version 1
+company.wav
+24
+74
+1
+	Voice 1
+	i have been longing for your company
+	1
+		i have been longing for your company
+		0
+		73
+		7
+			i 0 2 1
+				0 AI
+			have 3 11 3
+				3 etc
+				6 AI
+				9 FV
+			been 12 20 3
+				12 MBP
+				15 AI
+				18 L
+			longing 21 35 5
+				21 L
+				24 O
+				27 L
+				30 AI
+				33 L
+			for 36 43 3
+				36 FV
+				39 O
+				41 etc
+			your 44 52 3
+				44 etc
+				47 O
+				50 etc
+			company 53 73 7
+				53 etc
+				56 AI
+				59 MBP
+				62 MBP
+				65 AI
+				68 L
+				71 E
