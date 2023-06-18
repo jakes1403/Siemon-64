@@ -1403,7 +1403,6 @@ int main(void)
 
         audio_words[i] = parsePapagayoFile(audio_lip_sync[i]);
     }
-
     
     //printParsedData(head);
 
