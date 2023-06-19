@@ -538,7 +538,7 @@ void setup_renderer()
     glFogf(GL_FOG_START, 2);
     glFogf(GL_FOG_END, 30);
     
-    switch_to_world_colors();
+    switch_to_heaven_colors();
 
     glGenTextures(SPRITE_COUNT, textures);
 
@@ -1005,17 +1005,22 @@ void render_game()
         red_value = distance_from_simon / distance_cutoff;
     }
 
-    tintScreenRed(red_value);
-
-    if (distance_from_simon < DEATH_DISTANCE)
+    if (!is_in_heaven)
     {
-        float tint_r = 0.5 + 0.5 * cos(game_time / 2.0f + 0);
-        float tint_g = 0.5 + 0.5 * cos(game_time / 2.0f + 2);
-        float tint_b = 0.5 + 0.5 * cos(game_time / 2.0f + 4);
+        tintScreenRed(red_value);
 
-        tintScreenRGB(tint_r, tint_g, tint_b);
-        
+        if (distance_from_simon < DEATH_DISTANCE)
+        {
+            float tint_r = 0.5 + 0.5 * cos(game_time / 2.0f + 0);
+            float tint_g = 0.5 + 0.5 * cos(game_time / 2.0f + 2);
+            float tint_b = 0.5 + 0.5 * cos(game_time / 2.0f + 4);
+
+            tintScreenRGB(tint_r, tint_g, tint_b);
+            
+        }
     }
+
+    
 
     float aspect_ratio = (float)display_get_width() / (float)display_get_height();
     float near_plane = 1.0f;
@@ -1157,15 +1162,19 @@ void play_step()
     wav64_play(&step_sfx, CHANNEL_SFX1);
 }
 
+bool is_in_opening = true;
 
 void setup_game()
 {
     game_time = 3283;
-    camera_x = cube_size * 2, camera_y = floor_y, camera_z = cube_size * 2;
+    //camera_x = cube_size * 2, camera_y = floor_y, camera_z = cube_size * 2;
+    camera_x = cube_size * 2, camera_y = floor_y + 50, camera_z = cube_size * 2;
 
-    camera_pitch = 0.0f, camera_yaw = 0.0f;
+    camera_pitch = -0.329688f, camera_yaw = 0.207813f;
 
     simon_x = 0.0f, simon_y = 1.5f, simon_z = 60.0f;
+
+    is_in_opening = true;
 
     srand(global_time); //seed random number generator with system time
 	initialize_maze_gen();      //initialize the maze
@@ -1174,7 +1183,7 @@ void setup_game()
 
 int last_step_time = -60;
 
-void process_simon_chase()
+void move_simon_towards_player()
 {
     simon_x += (camera_x - simon_x) * 0.005f * perlin2d(simon_x, simon_y, 0.1, 4) * 2.0f;
     simon_y += (camera_y - simon_y) * 0.005f * perlin2d(simon_y, simon_x, 0.1, 4) * 1.5f;
@@ -1189,7 +1198,7 @@ void process_simon_chase()
     simon_z += cos(rotation*0.01f) * 0.05f;
 }
 
-void do_movement_logic()
+void do_player_movement_logic()
 {
     static int jumpFrameCount = 0;
 
@@ -1406,17 +1415,32 @@ void step_through_game()
 
     game_time++;
 
-    do_movement_logic();
+    if (is_in_opening)
+    {
+        if (game_time < 4000)
+        {
+            move_simon_towards_player();
+            
+        }
 
-    process_simon_chase();
+        do_player_movement_logic();
+
+        debugf("%f\n", camera_yaw);
+    }
+    else
+    {
+        do_player_movement_logic();
+
+        move_simon_towards_player();
+
+        float distance_from_simon = distance3D(simon_x, simon_y, simon_z, camera_x, camera_y, camera_z);
+
+        play_simon_game_messages(distance_from_simon);
+
+        check_and_process_player_death(distance_from_simon);
+    }
 
     simon_look_at_player();
-
-    float distance_from_simon = distance3D(simon_x, simon_y, simon_z, camera_x, camera_y, camera_z);
-
-    play_simon_game_messages(distance_from_simon);
-
-    check_and_process_player_death(distance_from_simon);
 }
 
 // RANDN(n): generate a random number from 0 to n-1
