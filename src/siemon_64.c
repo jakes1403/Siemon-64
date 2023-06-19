@@ -18,11 +18,12 @@
 #include "papagayo_parse.h"
 
 
+
 // Set this to 1 to enable rdpq debug output.
 // The demo will only run for a single frame and stop.
 #define DEBUG_RDP 0
 
-#define PI 3.14159265
+#define PI 3.1415926535897932385
 
 #define CHANNEL_SFX1    0
 #define CHANNEL_VOICE    1
@@ -45,13 +46,16 @@ const float look_sensitivity = 0.1f;
 
 static surface_t zbuffer;
 
-static bool fog_enabled = true;
 
 static rdpq_font_t *fnt1;
 
 static const GLfloat environment_color[] = { 0.1f, 0.03f, 0.2f, 1.f };
 
+static const GLfloat environment_color_heaven[] = { 1.0f, 1.0f, 1.0f, 1.f };
 
+bool is_in_heaven = true;
+
+wav64_t step_sfx;
 
 #define SPRITE_COUNT 31
 #define MAP_SIZE 10
@@ -422,10 +426,13 @@ static const char *messages[MESSAGE_COUNT] = {
     "No sanctuary in the labyrinth. Siemon."
 };
 
-#define AUDIO_MESSAGE_COUNT 7
+#define AUDIO_MESSAGE_COUNT 10
 
 static const char *audio_messages[AUDIO_MESSAGE_COUNT] = {
     "rom:/simon_kills.wav64",
+    "rom:/to_play.wav64",
+    "rom:/press_the.wav64",
+    "rom:/you_fool.wav64",
     "rom:/breath.wav64",
     "rom:/company.wav64",
     "rom:/console.wav64",
@@ -436,6 +443,9 @@ static const char *audio_messages[AUDIO_MESSAGE_COUNT] = {
 
 static const char *audio_lip_sync[AUDIO_MESSAGE_COUNT] = {
     "rom:/simon_kills.pgo",
+    "rom:/to_play.pgo",
+    "rom:/press_the.pgo",
+    "rom:/you_fool.pgo"
     "rom:/breath.pgo",
     "rom:/company.pgo",
     "rom:/console.pgo",
@@ -483,7 +493,17 @@ void load_texture(GLenum target, sprite_t *sprite)
     }
 }
 
+void switch_to_heaven_colors()
+{
+    is_in_heaven = true;
+    glFogfv(GL_FOG_COLOR, environment_color_heaven);
+}
 
+void switch_to_world_colors()
+{
+    is_in_heaven = false;
+    glFogfv(GL_FOG_COLOR, environment_color);
+}
 
 void setup_renderer()
 {
@@ -517,7 +537,8 @@ void setup_renderer()
 
     glFogf(GL_FOG_START, 2);
     glFogf(GL_FOG_END, 30);
-    glFogfv(GL_FOG_COLOR, environment_color);
+    
+    switch_to_world_colors();
 
     glGenTextures(SPRITE_COUNT, textures);
 
@@ -965,7 +986,14 @@ void render_game()
 
     gl_context_begin();
 
-    glClearColor(environment_color[0], environment_color[1], environment_color[2], environment_color[3]);
+    if (is_in_heaven)
+    {
+        glClearColor(environment_color_heaven[0], environment_color_heaven[1], environment_color_heaven[2], environment_color_heaven[3]);
+    }
+    else
+    {
+        glClearColor(environment_color[0], environment_color[1], environment_color[2], environment_color[3]);
+    }
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
     float distance_from_simon = distance3D(simon_x, simon_y, simon_z, camera_x, camera_y, camera_z);
@@ -1116,6 +1144,19 @@ static const char* game_state;
 
 static int transition_count = 0;
 
+void play_step()
+{
+    static const int mid = 12127;
+    static const int dif = 500;
+    static const int low = mid - dif;
+    static const int high = mid + dif;
+
+    int pitch = low + (rand() % (high - low));
+
+    mixer_ch_set_freq(CHANNEL_SFX1, pitch);
+    wav64_play(&step_sfx, CHANNEL_SFX1);
+}
+
 
 void setup_game()
 {
@@ -1131,24 +1172,29 @@ void setup_game()
 	generate_maze();        //generate the maze
 }
 
-void step_through_game()
+int last_step_time = -60;
+
+void process_simon_chase()
+{
+    simon_x += (camera_x - simon_x) * 0.005f * perlin2d(simon_x, simon_y, 0.1, 4) * 2.0f;
+    simon_y += (camera_y - simon_y) * 0.005f * perlin2d(simon_y, simon_x, 0.1, 4) * 1.5f;
+    simon_z += (camera_z - simon_z) * 0.005f * perlin2d(simon_x, simon_y, 0.2, 4) * 1.8f;
+
+    //debugf("%f\n", perlin2d(simon_x, simon_y, 0.2, 4));
+
+    rotation = game_time * 0.5f;
+
+    simon_x += sin(rotation*0.01f) * 0.05f;
+    simon_y += fabs(sin(rotation*0.01f) * 0.05f);
+    simon_z += cos(rotation*0.01f) * 0.05f;
+}
+
+void do_movement_logic()
 {
     static int jumpFrameCount = 0;
 
     static bool doingJump = false;
-
-    game_time++;
-
-    static uint32_t random_message_time = 500;
-    static uint32_t last_time = 0;
-
-    if (game_time % random_message_time == 0 && game_time - last_time > 1000)
-    {
-        last_time = game_time;
-        random_message_time = 500 + (rand() % 1000);
-        const int start_at = 1;
-        play_audio_clip(audio_messages[start_at + (rand() % (AUDIO_MESSAGE_COUNT - start_at))]);
-    }
+    bool is_walking = false;
 
     if (down.c[0].A && !doingJump) {
         jumpFrameCount = 0;
@@ -1173,15 +1219,6 @@ void step_through_game()
         }
     }
 
-    if (down.c[0].L) {
-        fog_enabled = !fog_enabled;
-        if (fog_enabled) {
-            glEnable(GL_FOG);
-        } else {
-            glDisable(GL_FOG);
-        }
-    }
-
     float y = pressed.c[0].y / 128.f;
     float x = pressed.c[0].x / 128.f;
     float mag = x*x + y*y;
@@ -1199,6 +1236,7 @@ void step_through_game()
 
     if (pressed.c[0].C_up)
     {
+        is_walking = true;
         prev_camera_x = camera_x;
         camera_x += sin(camera_yaw) * movement_speed;
         Collision_Info collision = check_for_maze_collision();
@@ -1220,6 +1258,7 @@ void step_through_game()
 
     if (pressed.c[0].C_left)
     {
+        is_walking = true;
         prev_camera_x = camera_x;
         camera_x += cos(camera_yaw) * movement_speed;
         Collision_Info collision = check_for_maze_collision();
@@ -1241,6 +1280,7 @@ void step_through_game()
 
     if (pressed.c[0].C_right)
     {
+        is_walking = true;
         prev_camera_x = camera_x;
         camera_x -= cos(camera_yaw) * movement_speed;
         Collision_Info collision = check_for_maze_collision();
@@ -1262,6 +1302,7 @@ void step_through_game()
 
     if (pressed.c[0].C_down)
     {
+        is_walking = true;
         prev_camera_x = camera_x;
         camera_x -= sin(camera_yaw) * movement_speed;
         Collision_Info collision = check_for_maze_collision();
@@ -1281,32 +1322,28 @@ void step_through_game()
         }
     }
 
-    simon_x += (camera_x - simon_x) * 0.005f * perlin2d(simon_x, simon_y, 0.1, 4) * 2.0f;
-    simon_y += (camera_y - simon_y) * 0.005f * perlin2d(simon_y, simon_x, 0.1, 4) * 1.5f;
-    simon_z += (camera_z - simon_z) * 0.005f * perlin2d(simon_x, simon_y, 0.2, 4) * 1.8f;
+    if (is_walking && game_time - last_step_time >= 20 && !doingJump) {
+        play_step();
+        last_step_time = game_time;
+    }
+}
 
-    //debugf("%f\n", perlin2d(simon_x, simon_y, 0.2, 4));
+void play_simon_game_messages(float distance_from_simon)
+{
+    static uint32_t random_message_time = 500;
+    static uint32_t last_time = 0;
 
-    rotation = game_time * 0.5f;
-
-    simon_x += sin(rotation*0.01f) * 0.05f;
-    simon_y += fabs(sin(rotation*0.01f) * 0.05f);
-    simon_z += cos(rotation*0.01f) * 0.05f;
-
-    float dx = camera_x - simon_x;
-    float dz = camera_z - simon_z;
-
-    float target_rotation = atan2(dz, dx) * -(180.0 / PI) + 90.0f;
-
-    // calculate the difference and make sure it stays in the -180 to 180 range
-    float rotation_difference = fmodf((target_rotation - current_rotation + 180.0f), 360.0f) - 180.0f;
-    current_rotation += rotation_difference * 0.05f * perlin2d(simon_x, simon_y, 0.1, 4);
-
-    float distance_from_simon = distance3D(simon_x, simon_y, simon_z, camera_x, camera_y, camera_z);
+    if (game_time % random_message_time == 0 && game_time - last_time > 1000)
+    {
+        last_time = game_time;
+        random_message_time = 500 + (rand() % 1000);
+        const int start_at = 5;
+        play_audio_clip(audio_messages[start_at + (rand() % (AUDIO_MESSAGE_COUNT - start_at))]);
+    }
 
     if (distance_from_simon < distance_cutoff)
     {
-        if (!hasDone)
+        if (!hasDone && game_time - last_time > 1000)
         {
             hasDone = true;
             if (rand() % 100 < 30)
@@ -1324,7 +1361,10 @@ void step_through_game()
         hasDone = false;
         show_message = false;
     }
-    
+}
+
+void check_and_process_player_death(float distance_from_simon)
+{
     bool inDeathRange = distance_from_simon < DEATH_DISTANCE;
 
     static bool oldDeathRange = false;
@@ -1347,6 +1387,36 @@ void step_through_game()
         transition_count = 0;
         //setup_game();
     }
+}
+
+void simon_look_at_player()
+{
+    float dx = camera_x - simon_x;
+    float dz = camera_z - simon_z;
+
+    float target_rotation = atan2(dz, dx) * -(180.0 / PI) + 90.0f;
+
+    // calculate the difference and make sure it stays in the -180 to 180 range
+    float rotation_difference = fmodf((target_rotation - current_rotation + 180.0f), 360.0f) - 180.0f;
+    current_rotation += rotation_difference * 0.05f * perlin2d(simon_x, simon_y, 0.1, 4);
+}
+
+void step_through_game()
+{
+
+    game_time++;
+
+    do_movement_logic();
+
+    process_simon_chase();
+
+    simon_look_at_player();
+
+    float distance_from_simon = distance3D(simon_x, simon_y, simon_z, camera_x, camera_y, camera_z);
+
+    play_simon_game_messages(distance_from_simon);
+
+    check_and_process_player_death(distance_from_simon);
 }
 
 // RANDN(n): generate a random number from 0 to n-1
@@ -1372,8 +1442,15 @@ int main(void)
     wav64_open(&sfx_monosample, "rom:/dungeon_music.wav64");
 	wav64_set_loop(&sfx_monosample, true);
 
+    wav64_open(&step_sfx, "rom:/step.wav64");
+
     rdpq_init();
     gl_init();
+
+// #if DEBUG_RDP
+//     rdpq_debug_start();
+//     rdpq_debug_log(true);
+// #endif
 
     global_time = 0;
 
@@ -1416,7 +1493,9 @@ int main(void)
 
     build_texture_map();
 
+#if !DEBUG_RDP
     while (1)
+#endif
     {
         surface_t *disp = display_get();
 
@@ -1425,6 +1504,12 @@ int main(void)
         controller_scan();
         pressed = get_keys_pressed();
         down = get_keys_down();
+
+        if (down.c[0].left)
+        {
+            rdpq_debug_start();
+            rdpq_debug_log(true);
+        }
 
         if (!strcmp(game_state, "warning"))
         {
@@ -1579,9 +1664,14 @@ int main(void)
                 });
             }
 
-            rdpq_sprite_blit(sprites[30], 160, 200, &(rdpq_blitparms_t){
+            rdpq_sprite_blit(sprites[30], 150, 200, &(rdpq_blitparms_t){
                 .scale_x = 1.0, .scale_y = 1.0, .theta = 0.2 * sin((global_time / 60.0f))
             });
+
+            rdpq_font_begin(RGBA32(0xFF, 0xFF, 0xFF, 0xFF));
+            rdpq_font_position(130, 200);
+            rdpq_font_print(fnt1, "Press Start");
+            rdpq_font_end();
 
             if (down.c[0].start) {
                 game_state = "transition";
@@ -1603,7 +1693,13 @@ int main(void)
 			mixer_poll(buf, audio_get_buffer_length());
 			audio_write_end();
 		}
+            
 
+        if (down.c[0].left)
+        {
+            rspq_wait();
+            break;
+        }
 
     }
 

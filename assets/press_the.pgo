@@ -1,0 +1,37 @@
+lipsync version 1
+press_the.wav
+24
+116
+1
+	Voice 1
+	sie mon says, press the button.
+	1
+		sie mon says, press the button.
+		0
+		115
+		6
+			sie 13 19 2
+				13 etc
+				17 E
+			mon 20 28 3
+				20 MBP
+				23 O
+				26 L
+			says, 29 36 3
+				29 etc
+				32 E
+				34 etc
+			press 37 44 4
+				37 MBP
+				39 etc
+				41 E
+				43 etc
+			the 45 52 2
+				45 etc
+				49 AI
+			button. 96 115 5
+				96 MBP
+				100 AI
+				104 etc
+				108 AI
+				112 L
