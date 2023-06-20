@@ -740,8 +740,11 @@ void draw_collectible(float x, float y)
     glBindTexture(GL_TEXTURE_2D, textures[0]);
     if (calculate_distance(x, y, camera_x, camera_z) < MAX_LENGTH)
     {
-        glTranslatef(x, cube_size * 2,y);
+        glTranslatef(x, cube_size - 2,y);
         glScalef(0.1, 0.1, 0.1);
+        glRotatef(game_time*0.23f + x + y, 1, 0, 0);
+        glRotatef(game_time*0.98f + x + y, 0, 0, 1);
+        glRotatef(game_time*1.71f + x + y, 0, 1, 0);
         rdpq_debug_log_msg("Cube");
         draw_cube();
     }
@@ -1111,7 +1114,7 @@ void render_game()
     //glDisable(GL_LIGHTING);
     rdpq_debug_log_msg("Simon");
 
-    simon_frame = getFrameNumberByVoiceLineTime(audio_words[audio_clip_index], simon_frame_time++ / 2);
+    simon_frame = getFrameNumberByVoiceLineTime(audio_words[audio_clip_index], simon_frame_time++ * 0.4);
 
     draw_quad();
     //glDepthMask(GL_TRUE);
