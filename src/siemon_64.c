@@ -717,32 +717,50 @@ Collision_Info check_for_maze_collision()
 
 void drawCube (float x, float y)
 {
+    glPushMatrix();
     glBindTexture(GL_TEXTURE_2D, textures[0]);
     if (calculate_distance(x, y, camera_x, camera_z) < MAX_LENGTH)
     {
         glTranslatef(x, cube_size,y);
         rdpq_debug_log_msg("Cube");
         draw_cube();
-        glTranslatef(-x, -cube_size,-y);
     }
     maze_segments[number_segments].x = x;
     maze_segments[number_segments].y = y;
 
     number_segments++;
+
+    glPopMatrix();
     
+}
+
+void draw_collectible(float x, float y)
+{
+    glPushMatrix();
+    glBindTexture(GL_TEXTURE_2D, textures[0]);
+    if (calculate_distance(x, y, camera_x, camera_z) < MAX_LENGTH)
+    {
+        glTranslatef(x, cube_size * 2,y);
+        glScalef(0.1, 0.1, 0.1);
+        rdpq_debug_log_msg("Cube");
+        draw_cube();
+    }
+    glPopMatrix();
 }
 
 
 void drawFloor (float x, float y)
 {
+    glPushMatrix();
     glBindTexture(GL_TEXTURE_2D, textures[1]);
     if (calculate_distance(x, y, camera_x, camera_z) < MAX_LENGTH)
     {
         glTranslatef(x, 0,y);
         draw_plane();
-        glTranslatef(-x, 0,-y);
     }
-    
+    glPopMatrix();
+
+    draw_collectible(x, y);
 }
 
 #define WHITE drawFloor(x * cube_size * 2, y * cube_size * 2)
@@ -1055,7 +1073,6 @@ void render_game()
     glEnable(GL_TEXTURE_2D);
 
     //glEnable(GL_COLOR_MATERIAL);
-    glPushMatrix();
 
     rdpq_debug_log_msg("Plane");
     //draw_plane();
@@ -1069,7 +1086,6 @@ void render_game()
 
     renderMaze(0, 0);
 
-    glPopMatrix();
 
     glPushMatrix();
 
@@ -1184,8 +1200,8 @@ void setup_game()
     a_pressed = false;
 
     srand(global_time); //seed random number generator with system time
-	initialize_maze_gen();      //initialize the maze
-	generate_maze();        //generate the maze
+	initialize_maze_gen(); //initialize the maze
+	generate_maze(); //generate the maze
 }
 
 int last_step_time = -60;
@@ -1456,7 +1472,7 @@ void step_through_game()
         if (a_pressed)
         {
             time_since_a++;
-            debugf("%li\n", time_since_a);
+            //debugf("%li\n", time_since_a);
         }
 
         if (time_since_a == 451)
@@ -1523,6 +1539,8 @@ int main(void)
     wav64_open(&step_sfx, "rom:/step.wav64");
 
     rdpq_init();
+    //rdpq_debug_start();
+    //rdpq_debug_log(true);
     gl_init();
 
 // #if DEBUG_RDP
@@ -1583,11 +1601,6 @@ int main(void)
         pressed = get_keys_pressed();
         down = get_keys_down();
 
-        if (down.c[0].left)
-        {
-            rdpq_debug_start();
-            rdpq_debug_log(true);
-        }
 
         if (!strcmp(game_state, "warning"))
         {
