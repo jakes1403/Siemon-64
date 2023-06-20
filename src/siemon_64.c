@@ -445,7 +445,7 @@ static const char *audio_lip_sync[AUDIO_MESSAGE_COUNT] = {
     "rom:/simon_kills.pgo",
     "rom:/to_play.pgo",
     "rom:/press_the.pgo",
-    "rom:/you_fool.pgo"
+    "rom:/you_fool.pgo",
     "rom:/breath.pgo",
     "rom:/company.pgo",
     "rom:/console.pgo",
@@ -1164,6 +1164,10 @@ void play_step()
 
 bool is_in_opening = true;
 
+bool waiting_for_a = false;
+
+bool a_pressed = false;
+
 void setup_game()
 {
     game_time = 3283;
@@ -1174,7 +1178,10 @@ void setup_game()
 
     simon_x = 0.0f, simon_y = 1.5f, simon_z = 60.0f;
 
+    waiting_for_a = false;
+
     is_in_opening = true;
+    a_pressed = false;
 
     srand(global_time); //seed random number generator with system time
 	initialize_maze_gen();      //initialize the maze
@@ -1196,6 +1203,24 @@ void move_simon_towards_player()
     simon_x += sin(rotation*0.01f) * 0.05f;
     simon_y += fabs(sin(rotation*0.01f) * 0.05f);
     simon_z += cos(rotation*0.01f) * 0.05f;
+}
+
+void do_player_looking_logic()
+{
+    float y = pressed.c[0].y / 128.f;
+    float x = pressed.c[0].x / 128.f;
+    float mag = x*x + y*y;
+
+    if (fabsf(mag) > 0.01f) {
+        //distance += y * 0.2f;
+        //cam_rotate = cam_rotate - x * 1.2f;
+        // Yaw is left and right
+        camera_yaw -= x * look_sensitivity;
+        camera_pitch -= y * look_sensitivity;
+
+        //debugf("%f\n", camera_pitch);
+        camera_pitch = clamp(camera_pitch, -1.5f, 1.5f);
+    }
 }
 
 void do_player_movement_logic()
@@ -1226,21 +1251,6 @@ void do_player_movement_logic()
         {
             camera_y = floor_y + jump_val;
         }
-    }
-
-    float y = pressed.c[0].y / 128.f;
-    float x = pressed.c[0].x / 128.f;
-    float mag = x*x + y*y;
-
-    if (fabsf(mag) > 0.01f) {
-        //distance += y * 0.2f;
-        //cam_rotate = cam_rotate - x * 1.2f;
-        // Yaw is left and right
-        camera_yaw -= x * look_sensitivity;
-        camera_pitch -= y * look_sensitivity;
-
-        //debugf("%f\n", camera_pitch);
-        camera_pitch = clamp(camera_pitch, -1.5f, 1.5f);
     }
 
     if (pressed.c[0].C_up)
@@ -1417,18 +1427,62 @@ void step_through_game()
 
     if (is_in_opening)
     {
+        static uint32_t time_since_a = 0;
         if (game_time < 4000)
         {
             move_simon_towards_player();
             
         }
+        if (game_time == 4176)
+        {
+            play_audio_clip("rom:/to_play.wav64");
+        }
+        if (game_time == 4528)
+        {
+            waiting_for_a = true;
+        }
 
-        do_player_movement_logic();
+        if (waiting_for_a)
+        {
+            if (down.c[0].A)
+            {
+                play_audio_clip("rom:/press_the.wav64");
+                a_pressed = true;
+                waiting_for_a = false;
+                time_since_a = 0;
+            }
+        }
 
-        debugf("%f\n", camera_yaw);
+        if (a_pressed)
+        {
+            time_since_a++;
+            debugf("%li\n", time_since_a);
+        }
+
+        if (time_since_a == 451)
+        {
+            play_audio_clip("rom:/you_fool.wav64");
+            switch_to_world_colors();
+        }
+
+        if (time_since_a > 887)
+        {
+            if (camera_y > floor_y)
+            {
+                camera_y -= perlin2d(camera_x, camera_y, 4, 4);
+            }
+        }
+
+        if (camera_y < floor_y + 0.1f)
+        {
+            is_in_opening = false;
+        }
+
+        do_player_looking_logic();
     }
     else
     {
+        do_player_looking_logic();
         do_player_movement_logic();
 
         move_simon_towards_player();
