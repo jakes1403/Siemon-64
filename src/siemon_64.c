@@ -57,7 +57,7 @@ bool is_in_heaven = true;
 
 wav64_t step_sfx;
 
-#define SPRITE_COUNT 31
+#define SPRITE_COUNT 32
 #define MAP_SIZE 10
 
 typedef struct {
@@ -96,7 +96,8 @@ static const char *texture_path[SPRITE_COUNT] = {
     "rom:/M.sprite",
     "rom:/O.sprite",
     "rom:/N.sprite",
-    "rom:/start.sprite"
+    "rom:/start.sprite",
+    "rom:/floor_end.sprite"
 };
 
 TextureMap texture_map[MAP_SIZE]; // map array
@@ -489,7 +490,7 @@ void load_texture(GLenum target, sprite_t *sprite)
         surface_t surf = sprite_get_lod_pixels(sprite, i);
         if (!surf.buffer) break;
 
-        glTexImageN64(target, i, &surf);
+        glSpriteTextureN64(target, sprite, &(rdpq_texparms_t){.s.repeats = REPEAT_INFINITE, .t.repeats = REPEAT_INFINITE});
     }
 }
 
@@ -715,6 +716,26 @@ Collision_Info check_for_maze_collision()
     return inf;
 }
 
+static uint32_t number_collectibles;
+
+struct Maze_Segment collectible_segments[(MAX_LENGTH * 2) * (MAX_LENGTH * 2)];
+
+Collision_Info check_for_collectible_collision()
+{
+    Collision_Info inf;
+    inf.hadCollision = false;
+    for (uint32_t i = 0; i < number_collectibles; i++)
+    {
+        if (check_collision(2.0f, camera_x, camera_y, camera_z, cube_size, collectible_segments[i].x, cube_size, collectible_segments[i].y))
+        {
+            inf.x = collectible_segments[i].x;
+            inf.y = collectible_segments[i].y;
+            inf.hadCollision = true;
+        }
+    }
+    return inf;
+}
+
 void drawCube (float x, float y)
 {
     glPushMatrix();
@@ -734,24 +755,6 @@ void drawCube (float x, float y)
     
 }
 
-void draw_collectible(float x, float y)
-{
-    glPushMatrix();
-    glBindTexture(GL_TEXTURE_2D, textures[0]);
-    if (calculate_distance(x, y, camera_x, camera_z) < MAX_LENGTH)
-    {
-        glTranslatef(x, cube_size - 2,y);
-        glScalef(0.1, 0.1, 0.1);
-        glRotatef(game_time*0.23f + x + y, 1, 0, 0);
-        glRotatef(game_time*0.98f + x + y, 0, 0, 1);
-        glRotatef(game_time*1.71f + x + y, 0, 1, 0);
-        rdpq_debug_log_msg("Cube");
-        draw_cube();
-    }
-    glPopMatrix();
-}
-
-
 void drawFloor (float x, float y)
 {
     glPushMatrix();
@@ -762,8 +765,6 @@ void drawFloor (float x, float y)
         draw_plane();
     }
     glPopMatrix();
-
-    draw_collectible(x, y);
 }
 
 #define WHITE drawFloor(x * cube_size * 2, y * cube_size * 2)
@@ -787,6 +788,7 @@ void renderMaze(int xspecial, int yspecial){
     int lowerBoundY = max(0, adjustedCameraY - (MAX_LENGTH / cube_size));
     int upperBoundY = min(height - 1, adjustedCameraY + (MAX_LENGTH / cube_size));
     number_segments = 0;
+    number_collectibles = 0;
 
     //Actual writing of data begins here:
     for(y = lowerBoundY; y <= upperBoundY; y++){
@@ -1272,7 +1274,7 @@ void do_player_movement_logic()
         }
     }
 
-    if (pressed.c[0].C_up)
+    if (pressed.c[0].C_up || pressed.c[0].up)
     {
         is_walking = true;
         prev_camera_x = camera_x;
@@ -1294,7 +1296,7 @@ void do_player_movement_logic()
         }
     }
 
-    if (pressed.c[0].C_left)
+    if (pressed.c[0].C_left || pressed.c[0].left)
     {
         is_walking = true;
         prev_camera_x = camera_x;
@@ -1316,7 +1318,7 @@ void do_player_movement_logic()
         }
     }
 
-    if (pressed.c[0].C_right)
+    if (pressed.c[0].C_right || pressed.c[0].right)
     {
         is_walking = true;
         prev_camera_x = camera_x;
@@ -1338,7 +1340,7 @@ void do_player_movement_logic()
         }
     }
 
-    if (pressed.c[0].C_down)
+    if (pressed.c[0].C_down || pressed.c[0].down)
     {
         is_walking = true;
         prev_camera_x = camera_x;
@@ -1683,9 +1685,6 @@ int main(void)
             if (down.c[0].start) {
                 is_paused = !is_paused;
             }
-            if (down.c[0].right) {
-                setup_game();
-            }
             if (!is_paused)
             {
                 step_through_game();
@@ -1788,12 +1787,6 @@ int main(void)
 			audio_write_end();
 		}
             
-
-        if (down.c[0].left)
-        {
-            rspq_wait();
-            break;
-        }
 
     }
 
