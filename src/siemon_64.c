@@ -17,7 +17,10 @@
 
 #include "papagayo_parse.h"
 
+#define STYLE_WHITE 0
+#define STYLE_RED 1
 
+#define FONT_JUDGES 1
 
 // Set this to 1 to enable rdpq debug output.
 // The demo will only run for a single frame and stop.
@@ -1150,10 +1153,9 @@ void render_game()
 
     if (show_message)
     {
-        rdpq_font_begin(RGBA32(0xFF, 0xFF, 0xFF, 0xFF));
-        rdpq_font_position(30, 25);
-        rdpq_font_printf(fnt1, "%s", message_str);
-        rdpq_font_end();
+        rdpq_text_printf(&(rdpq_textparms_t){
+            .style_id = STYLE_WHITE
+        }, FONT_JUDGES, 30, 25, "%s", message_str);
     }
 }
 
@@ -1571,6 +1573,16 @@ int main(void)
 
     fnt1 = rdpq_font_load("rom:/Judges.font64");
 
+    // 0 = white
+    rdpq_font_style(fnt1, STYLE_WHITE, &(rdpq_fontstyle_t){
+        .color = RGBA32(0xFF, 0xFF, 0xFF, 0xFF),
+    });
+    // 1 = red
+    rdpq_font_style(fnt1, STYLE_RED, &(rdpq_fontstyle_t){
+        .color = RGBA32(0xFF, 0x00, 0x00, 0xFF),
+    });
+    rdpq_text_register_font(FONT_JUDGES, fnt1);
+
     sprite_t* tiles_sprite = sprite_load("rom:/tiles.sprite");
 
     surface_t tiles_surf = sprite_get_pixels(tiles_sprite);
@@ -1622,36 +1634,30 @@ int main(void)
 
             if (show)
             {
-                rdpq_font_begin(RGBA32(0xFF, 0x00, 0x00, 0xFF));
-                rdpq_font_position(60, 50);
-                rdpq_font_print(fnt1, "PHOTOSENSITIVITY WARNING");
-                rdpq_font_end();
+                rdpq_text_printf(&(rdpq_textparms_t){
+                    .style_id = STYLE_RED
+                }, FONT_JUDGES, 60,50, "PHOTOSENSITIVITY WARNING");
             }
 
-            rdpq_font_begin(RGBA32(0xFF, 0xFF, 0xFF, 0xFF));
-            rdpq_font_position(20, 70);
-            rdpq_font_print(fnt1, "A small percentage of people may");
-            rdpq_font_end();
+            rdpq_text_printf(&(rdpq_textparms_t){
+                .style_id = STYLE_WHITE
+            }, FONT_JUDGES, 20, 70, "A small percentage of people may");
 
-            rdpq_font_begin(RGBA32(0xFF, 0xFF, 0xFF, 0xFF));
-            rdpq_font_position(20, 80);
-            rdpq_font_print(fnt1, "experience seizures when exposed");
-            rdpq_font_end();
+            rdpq_text_printf(&(rdpq_textparms_t){
+                .style_id = STYLE_WHITE
+            }, FONT_JUDGES, 20, 80, "experience seizures when exposed");
 
-            rdpq_font_begin(RGBA32(0xFF, 0xFF, 0xFF, 0xFF));
-            rdpq_font_position(20, 90);
-            rdpq_font_print(fnt1, "to certain lights, patterns, or images,");
-            rdpq_font_end();
+            rdpq_text_printf(&(rdpq_textparms_t){
+                .style_id = STYLE_WHITE
+            }, FONT_JUDGES, 20, 90, "to certain lights, patterns, or images,");
 
-            rdpq_font_begin(RGBA32(0xFF, 0xFF, 0xFF, 0xFF));
-            rdpq_font_position(20, 100);
-            rdpq_font_print(fnt1, "even with no history of epilepsy or seizures.");
-            rdpq_font_end();
+            rdpq_text_printf(&(rdpq_textparms_t){
+                .style_id = STYLE_WHITE
+            }, FONT_JUDGES, 20, 100, "even with no history of epilepsy or seizures.");
 
-            rdpq_font_begin(RGBA32(0xFF, 0xFF, 0xFF, 0xFF));
-            rdpq_font_position(90, 180);
-            rdpq_font_print(fnt1, "Press A to continue.");
-            rdpq_font_end();
+            rdpq_text_printf(&(rdpq_textparms_t){
+                .style_id = STYLE_WHITE
+            }, FONT_JUDGES, 90, 180, "Press A to continue.");
 
             if (down.c[0].A) {
                 game_state = "menu";
@@ -1668,10 +1674,9 @@ int main(void)
             rdpq_set_mode_fill(RGBA32(tint_r * 255,tint_g * 255,tint_b * 255,0xFF));
             rdpq_fill_rectangle(0, 0, display_get_width(), display_get_height());
 
-            rdpq_font_begin(RGBA32(0xFF, 0x00, 0x00, 0xFF));
-            rdpq_font_position(40, 100);
-            rdpq_font_print(fnt1, "It is advised to turn off your system.");
-            rdpq_font_end();
+            rdpq_text_printf(&(rdpq_textparms_t){
+                .style_id = STYLE_RED
+            }, FONT_JUDGES, 40, 100, "It is advised to turn off your system.");
 
             if (transition_count > 100)
             {
@@ -1694,10 +1699,9 @@ int main(void)
 
             if (is_paused)
             {
-                rdpq_font_begin(RGBA32(0xFF, 0xFF, 0xFF, 0xFF));
-                rdpq_font_position(20, 20);
-                rdpq_font_print(fnt1, "Pause");
-                rdpq_font_end();
+                rdpq_text_printf(&(rdpq_textparms_t){
+                    .style_id = STYLE_WHITE
+                }, FONT_JUDGES, 20, 20, "Pause");
             }
         }
         
@@ -1761,10 +1765,9 @@ int main(void)
                 .scale_x = 1.0, .scale_y = 1.0, .theta = 0.2 * sin((global_time / 60.0f))
             });
 
-            rdpq_font_begin(RGBA32(0xFF, 0xFF, 0xFF, 0xFF));
-            rdpq_font_position(130, 200);
-            rdpq_font_print(fnt1, "Press Start");
-            rdpq_font_end();
+            rdpq_text_printf(&(rdpq_textparms_t){
+                .style_id = STYLE_WHITE
+            }, FONT_JUDGES, 130, 200, "Press Start");
 
             if (down.c[0].start) {
                 game_state = "transition";
